@@ -1,15 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-<!-- 1. Tambahkan CSS Select2 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-<div class="card border-0 shadow-sm col-md-8 mx-auto">
+<div class="card border-0 shadow-sm col-md-8 mx-auto mb-4">
     <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Form Tiket Perbaikan Baru</h5>
+        <h5 class="mb-0"><i class="bi bi-ticket-perforated me-2"></i>Form Tiket Perbaikan Baru</h5>
     </div>
     <div class="card-body">
-        <!-- Alert Notifikasi Error Validasi Global -->
         @if ($errors->any())
             <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
                 <strong><i class="bi bi-exclamation-triangle-fill me-2"></i> Gagal mengirim tiket:</strong>
@@ -22,10 +20,28 @@
             </div>
         @endif
 
-        <form action="{{ route('tickets.store') }}" method="POST">
+        <form action="{{ route('tickets.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
 
-            <!-- Kolom Pembeda IT / MAINTENANCE -->
+            <!-- Informasi Pelapor Tiket (Input Teks Manual) -->
+            <div class="mb-3">
+                <label for="reporter_name" class="form-label fw-bold">Pelapor Tiket / Nama Staf <span class="text-danger">*</span></label>
+                <input 
+                    type="text" 
+                    name="reporter_name" 
+                    id="reporter_name" 
+                    class="form-control @error('reporter_name') is-invalid @enderror" 
+                    placeholder="Masukkan nama pelapor / staf..." 
+                    value="{{ old('reporter_name', auth()->user()->name) }}" 
+                    required
+                >
+                <small class="text-muted">Isi nama staf/personil yang melaporkan kendala ini.</small>
+                @error('reporter_name')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <!-- Divisi Penanggung Jawab -->
             <div class="mb-3">
                 <label class="form-label fw-bold">Divisi Penanggung Jawab (Tujuan Tiket) <span class="text-danger">*</span></label>
                 <select name="department" class="form-select @error('department') is-invalid @enderror" required>
@@ -38,10 +54,34 @@
                 @enderror
             </div>
 
-            <!-- Pilih Aset Kerusakan (Diubah ID-nya untuk Select2) -->
+            <!-- Cabang / Outlet -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Cabang / Outlet <span class="text-danger">*</span></label>
+                @if(auth()->user()->role === 'OUTLET')
+                    <!-- Jika Outlet, kunci cabang sesuai profilnya -->
+                    <input type="text" class="form-control bg-light" value="[{{ auth()->user()->branch_code }}] {{ auth()->user()->branch_name ?? 'Cabang Outlet' }}" readonly>
+                    <input type="hidden" name="branch_code" value="{{ auth()->user()->branch_code }}">
+                @else
+                    <!-- Jika Admin / IT, berikan dropdown opsi semua cabang -->
+                    <select name="branch_code" id="branch-select" class="form-select @error('branch_code') is-invalid @enderror" required>
+                        <option value="">-- Pilih Cabang / Outlet --</option>
+                        @if(isset($branches) && count($branches) > 0)
+                            @foreach($branches as $code => $name)
+                                <option value="{{ $code }}" {{ old('branch_code', auth()->user()->branch_code ?? '') == $code ? 'selected' : '' }}>
+                                    [{{ $code }}] {{ $name }}
+                                </option>
+                            @endforeach
+                        @endif
+                    </select>
+                @endif
+                @error('branch_code')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <!-- Aset Kerusakan -->
             <div class="mb-3">
                 <label class="form-label fw-bold">Pilih Aset Kerusakan <span class="text-danger">*</span></label>
-                <!-- Tambahkan ID "asset-select" -->
                 <select name="asset_id" id="asset-select" class="form-select @error('asset_id') is-invalid @enderror" required>
                     <option value="">-- Ketik / Cari Aset --</option>
                     @forelse($assets as $asset)
@@ -57,7 +97,7 @@
                 @enderror
             </div>
 
-            <!-- Judul Keluhan / Kerusakan -->
+            <!-- Judul Keluhan -->
             <div class="mb-3">
                 <label class="form-label fw-bold">Judul Keluhan / Kerusakan <span class="text-danger">*</span></label>
                 <input type="text" name="title" class="form-control @error('title') is-invalid @enderror" placeholder="Contoh: AC Mati Total / PC Hank" value="{{ old('title') }}" required>
@@ -88,32 +128,50 @@
                 @enderror
             </div>
 
+            <!-- INPUT UPLOAD FOTO / LAMPIRAN KERUSAKAN -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Foto / Lampiran Kerusakan <span class="text-muted fw-normal">(Opsional)</span></label>
+                <input type="file" name="attachment" class="form-control @error('attachment') is-invalid @enderror" accept="image/*,.pdf">
+                <small class="text-muted d-block mt-1">Format yang diperbolehkan: JPG, PNG, PDF. Maksimal size 5MB.</small>
+                @error('attachment')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
             <!-- Tombol Navigasi -->
             <div class="d-flex justify-content-between mt-4">
-                <a href="{{ route('tickets.index') }}" class="btn btn-secondary">Kembali</a>
-                <button type="submit" class="btn btn-primary px-4 fw-bold">Kirim Tiket</button>
+                <a href="{{ route('tickets.index') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Kembali
+                </a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                    <i class="bi bi-send me-1"></i> Kirim Tiket
+                </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 2. Tambahkan Library jQuery & JavaScript Select2 -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
-<!-- 3. Inisialisasi Select2 pada ID asset-select -->
 <script>
     $(document).ready(function() {
         $('#asset-select').select2({
             placeholder: "-- Ketik untuk mencari aset (Kode / Nama / Brand) --",
             allowClear: true,
-            width: '100%' // Menyesuaikan lebar dengan framework Bootstrap
+            width: '100%'
         });
+
+        if ($('#branch-select').length) {
+            $('#branch-select').select2({
+                placeholder: "-- Pilih Cabang / Outlet --",
+                allowClear: true,
+                width: '100%'
+            });
+        }
     });
 </script>
 
 <style>
-    /* Sedikit penyesuaian CSS agar tinggi Select2 sama dengan input form Bootstrap */
     .select2-container .select2-selection--single {
         height: 38px !important;
         border: 1px solid #dee2e6 !important;

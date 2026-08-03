@@ -16,25 +16,34 @@ class Ticket extends Model
         'department',
         'title',
         'description',
+        'attachment',
         'priority',
+        'branch_code',
+        'branch_name',
         'status',
     ];
 
-    // Relasi ke Pembuat Tiket (User)
+    /**
+     * Relasi ke Pembuat Tiket (Pelapor/User/Outlet)
+     */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    // Relasi ke Aset
+    /**
+     * Relasi ke Aset Terkait
+     */
     public function asset()
     {
-        return $this->belongsTo(Asset::class);
+        return $this->belongsTo(Asset::class, 'asset_id');
     }
 
-    // Relasi ke Form BAST
+    /**
+     * Relasi ke Form Berita Acara Serah Terima (BAST)
+     */
     public function bast()
     {
-        return $this->hasOne(Bast::class);
+        return $this->hasOne(Bast::class, 'ticket_id');
     }
 }

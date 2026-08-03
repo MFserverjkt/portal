@@ -7,7 +7,7 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ReportController;
 
-// 1. Redirect halaman utama ke login / dashboard tiket
+// 1. Redirect halaman utama ke login
 Route::get('/', function () { 
     return redirect()->route('login'); 
 });
@@ -29,8 +29,13 @@ Route::middleware(['auth'])->group(function () {
 
     // --- FITUR REPORT CORRECTIVE ---
     Route::middleware(['role:ADMIN,IT,MAINTENANCE'])->group(function () {
+        // Report IT
         Route::get('report/it', [ReportController::class, 'reportIt'])->name('report.it');
+        Route::get('report/it/export', [ReportController::class, 'exportItExcel'])->name('report.it.export');
+
+        // Report Maintenance
         Route::get('report/maintenance', [ReportController::class, 'reportMaintenance'])->name('report.maintenance');
+        Route::get('report/maintenance/export', [ReportController::class, 'exportMaintenanceExcel'])->name('report.maintenance.export');
     });
 
     // --- FITUR INVENTORI ASSET (Termasuk Export & Import Excel) ---
@@ -47,13 +52,14 @@ Route::middleware(['auth'])->group(function () {
         Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
         Route::get('tickets/{id}', [TicketController::class, 'show'])->name('tickets.show');
 
-        // Form BAST & Konfirmasi Done
-        // Menggunakan alias .createBast & .bast.create agar kompatibel dengan kedua pemanggilan
+        // Form BAST
         Route::get('tickets/{id}/bast/create', [TicketController::class, 'createBast'])->name('tickets.createBast');
-        Route::post('tickets/{id}/bast', [TicketController::class, 'storeBast'])->name('tickets.bast.store');
+        Route::post('tickets/{id}/bast', [TicketController::class, 'storeBast'])->name('tickets.storeBast');
+        Route::post('tickets/{id}/bast/store', [TicketController::class, 'storeBast'])->name('tickets.bast.store');
         
-        // Route Baru: Konfirmasi DONE oleh User/Outlet Pembuat Tiket
+        // Konfirmasi DONE oleh User/Outlet Pembuat Tiket
         Route::patch('tickets/{id}/done', [TicketController::class, 'markAsDone'])->name('tickets.done');
+        Route::post('tickets/{id}/done', [TicketController::class, 'markAsDone'])->name('tickets.markAsDone');
     });
 
 });

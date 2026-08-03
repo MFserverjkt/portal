@@ -16,7 +16,7 @@
     $user = auth()->user();
     $userRole = $user?->role;
     
-    // Ambil daftar permission (nama menu) yang diizinkan untuk role user dari database
+    // Ambil daftar permission dari database
     $permissions = \DB::table('role_has_permissions')
         ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
         ->where('role_has_permissions.role', $userRole)
@@ -25,15 +25,29 @@
 
     // Helper closure untuk cek apakah user punya akses ke suatu menu
     $canAccess = function($permName) use ($userRole, $permissions) {
-        return $userRole === 'ADMIN' || in_array($permName, $permissions);
+        // ADMIN selalu punya akses
+        if ($userRole === 'ADMIN') return true;
+        
+        // OUTLET diperbolehkan secara khusus membuka menu tiket
+        if ($userRole === 'OUTLET' && $permName === 'tickets.index') return true;
+
+        return in_array($permName, $permissions);
     };
+
+    // Ambil info nama/kode cabang dari berbagai kemungkinan kolom database
+    $branchInfo = $user?->branch_name 
+        ?? $user?->outlet_name 
+        ?? $user?->branch_code 
+        ?? $user?->outlet_code 
+        ?? null;
 @endphp
 
 <div class="d-flex">
     <!-- Sidebar navigation -->
     <div class="bg-dark text-white p-3 d-flex flex-column" id="sidebar">
         <h4 class="text-center my-3 fw-bold text-primary">PORTAL APP</h4>
-        <hr>
+        <hr class="border-secondary">
+        
         <ul class="nav nav-pills flex-column mb-auto">
 
             <!-- Sidebar MENU IT -->
@@ -62,7 +76,7 @@
                 </a>
             </li>
             @endif
-            <hr class="my-2">
+            <hr class="my-2 border-secondary">
             @endif
 
             <!-- Sidebar MENU MAINTENANCE -->
@@ -75,10 +89,10 @@
                     <i class="bi bi-file-earmark-text me-2"></i> Report Corrective
                 </a>
             </li>
-            <hr class="my-2">
+            <hr class="my-2 border-secondary">
             @endif
 
-            <!-- Sidebar MENU ASSET -->
+            <!-- Sidebar MENU ASSET / TIKET (Akan Muncul untuk Role OUTLET) -->
             @if($canAccess('assets.index') || $canAccess('tickets.index'))
             <li class="nav-item">
                 <small class="text-secondary fw-bold text-uppercase px-2">ASSET</small>
@@ -100,13 +114,37 @@
             @endif
 
         </ul>
-        <hr>
-        <div>
+        
+        <!-- BAGIAN FOOTER USER PROFILE & LOGOUT -->
+        <hr class="my-3 border-secondary">
+        <div class="mt-auto">
             @auth
-            <div class="mb-2"><i class="bi bi-person-circle me-1"></i> {{ $user?->name }} (<strong>{{ $userRole }}</strong>)</div>
+            <!-- Informasi User Login -->
+            <div class="d-flex align-items-center mb-3 text-white px-1">
+                <i class="bi bi-person-circle fs-3 me-2 text-light flex-shrink-0"></i>
+                <div class="lh-sm overflow-hidden" style="min-width: 0;">
+                    <div class="fw-semibold text-truncate">
+                        {{ $user?->name }}
+                    </div>
+                    <div class="small text-white-50 fw-bold">
+                        ({{ $userRole }})
+                    </div>
+                    
+                    {{-- Tampilkan Info Cabang jika User Memiliki Branch --}}
+                    @if($branchInfo)
+                    <div class="text-secondary text-truncate small mt-1" title="{{ $branchInfo }}">
+                        <i class="bi bi-geo-alt me-1"></i>{{ $branchInfo }}
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Tombol Logout -->
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
-                <button class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-box-arrow-right"></i> Logout</button>
+                <button type="submit" class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center">
+                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                </button>
             </form>
             @endauth
         </div>

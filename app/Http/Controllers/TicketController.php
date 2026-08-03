@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Models\Asset;
 use App\Models\Bast;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class TicketController extends Controller
 {
@@ -13,12 +14,34 @@ class TicketController extends Controller
     {
         $user = auth()->user();
 
-        // OUTLET hanya membaca tiket buatannya sendiri
+        // Query awal dengan Eager Loading
+        $query = Ticket::with(['asset', 'user', 'bast'])->latest();
+
+        // 1. Role OUTLET: Hanya melihat tiket buatan sendiri ATAU tiket dari cabang yang sama
         if ($user->role === 'OUTLET') {
-            $tickets = Ticket::with(['asset', 'bast'])->where('user_id', $user->id)->latest()->get();
-        } else {
-            $tickets = Ticket::with(['asset', 'user', 'bast'])->latest()->get();
+            $userBranch = trim($user->branch_code ?? '');
+
+            $query->where(function ($q) use ($user, $userBranch) {
+                // Tiket milik user ini
+                $q->where('user_id', $user->id);
+
+                // ATAU tiket dari branch yang sama (hanya disaring jika user memiliki branch_code valid)
+                if (!empty($userBranch)) {
+                    $q->orWhere(function ($sub) use ($userBranch) {
+                        $sub->whereNotNull('branch_code')
+                            ->where('branch_code', '!=', '')
+                            ->where('branch_code', $userBranch);
+                    });
+                }
+            });
+        } 
+        // 2. Role IT atau MAINTENANCE: Melihat tiket sesuai divisi penanggung jawab
+        elseif (in_array($user->role, ['IT', 'MAINTENANCE'])) {
+            $query->where('department', $user->role);
         }
+        // 3. Role ADMIN: Melihat seluruh data tiket tanpa filter
+
+        $tickets = $query->get();
 
         return view('tickets.index', compact('tickets'));
     }
@@ -32,7 +55,7 @@ class TicketController extends Controller
             $assets = Asset::orderBy('asset_name', 'asc')->get();
         } else {
             // 2. Untuk role OUTLET, filter berdasarkan branch_code user
-            $branchCode = trim($user->branch_code);
+            $branchCode = trim($user->branch_code ?? '');
 
             // Coba cari aset berdasarkan branch_code persis
             $assets = Asset::where('branch_code', $branchCode)
@@ -47,27 +70,70 @@ class TicketController extends Controller
             }
         }
 
-        return view('tickets.create', compact('assets'));
+        // Kumpulan Cabang Dinamis dari Tabel Assets
+        $branches = Asset::whereNotNull('branch_code')
+                         ->where('branch_code', '!=', '')
+                         ->select('branch_code', 'branch_name')
+                         ->distinct()
+                         ->pluck('branch_name', 'branch_code')
+                         ->toArray();
+
+        // Fallback default jika data aset masih kosong
+        if (empty($branches)) {
+            $branches = [
+                'HOTNG' => 'HEAD OFFICE TANGERANG',
+            ];
+        }
+
+        return view('tickets.create', compact('assets', 'branches'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'asset_id'    => 'required|exists:assets,id',
-            'department'  => 'required|in:IT,MAINTENANCE',
-            'title'       => 'required|string|max:255',
-            'description' => 'required|string',
-            'priority'    => 'required|in:Rendah,Sedang,Tinggi',
+            'reporter_name' => 'required|string|max:255', // Nama pelapor manual
+            'asset_id'      => 'required|exists:assets,id',
+            'department'    => 'required|in:IT,MAINTENANCE',
+            'title'         => 'required|string|max:255',
+            'description'   => 'required|string',
+            'priority'      => 'required|in:Rendah,Sedang,Tinggi',
+            'branch_code'   => 'nullable|string',
+            'attachment'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // Max 5MB
         ]);
+
+        $asset = Asset::find($request->asset_id);
+        $user  = auth()->user(); // Selalu mengambil akun user yang sedang login
+
+        // Handle Upload Lampiran Kerusakan Tiket
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('tickets/attachments', 'public');
+        }
+
+        // Penentuan branch_code
+        $branchCode = $request->branch_code 
+            ?? $asset->branch_code 
+            ?? $user->branch_code 
+            ?? 'HOTNG';
+
+        // Penentuan branch_name yang aman tanpa bergantung pada variabel eksternal
+        $branchName = $asset->branch_name 
+            ?? $user->branch_name 
+            ?? Asset::where('branch_code', $branchCode)->value('branch_name') 
+            ?? 'HEAD OFFICE TANGERANG';
 
         Ticket::create([
             'ticket_number' => 'TKT-' . date('Ymd') . '-' . rand(1000, 9999),
-            'user_id'       => auth()->id(),
+            'user_id'       => $user->id, // Mengunci akun pembuat tiket (User/Outlet yang login)
+            'reporter_name' => $request->reporter_name, // Menyimpan teks nama pelapor manual
             'asset_id'      => $request->asset_id,
             'department'    => $request->department,
             'title'         => $request->title,
             'description'   => $request->description,
+            'attachment'    => $attachmentPath,
             'priority'      => $request->priority,
+            'branch_code'   => $branchCode,
+            'branch_name'   => $branchName,
             'status'        => 'Terbuka',
         ]);
 
@@ -97,9 +163,19 @@ class TicketController extends Controller
         $request->validate([
             'action_taken'   => 'required|string',
             'parts_replaced' => 'nullable|string',
+            'attachment'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // Max 5MB
         ]);
 
         $ticket = Ticket::findOrFail($id);
+
+        // Handle Upload Lampiran Bukti BAST
+        $attachmentPath = $ticket->bast->attachment ?? null;
+        if ($request->hasFile('attachment')) {
+            if ($attachmentPath && Storage::disk('public')->exists($attachmentPath)) {
+                Storage::disk('public')->delete($attachmentPath);
+            }
+            $attachmentPath = $request->file('attachment')->store('basts/attachments', 'public');
+        }
 
         // Menggunakan updateOrCreate untuk mencegah error UNIQUE constraint
         Bast::updateOrCreate(
@@ -108,6 +184,7 @@ class TicketController extends Controller
                 'technician_id' => auth()->id(),
                 'action_taken'   => $request->action_taken,
                 'parts_replaced' => $request->parts_replaced,
+                'attachment'     => $attachmentPath,
                 'completed_at'  => now(),
             ]
         );

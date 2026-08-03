@@ -36,12 +36,12 @@
         </div>
     </div>
 
-    <!-- Tabel User -->
+    <!-- Tabel User (Dilengkapi Scroll & Sticky Header) -->
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
-            <div class="table-responsive">
+            <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
+                    <thead class="table-light sticky-top" style="z-index: 1;">
                         <tr>
                             <th>#</th>
                             <th>Nama User</th>
@@ -54,7 +54,7 @@
                     <tbody>
                         @forelse($users as $user)
                             <tr>
-                                <td>{{ $loop->iteration + $users->firstItem() - 1 }}</td>
+                                <td>{{ $loop->iteration }}</td>
                                 <td class="fw-semibold">{{ $user->name }}</td>
                                 <td>{{ $user->email }}</td>
                                 <td>
@@ -86,9 +86,6 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-        <div class="card-footer bg-white border-0 pt-3">
-            {{ $users->links() }}
         </div>
     </div>
 </div>
