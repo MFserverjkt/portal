@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
@@ -15,7 +16,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Otomatis login-kan user pertama jika belum ada session aktif
+        // 1. Paksa HTTPS jika diakses via Ngrok/Tunneling atau Production
+        if (config('app.env') !== 'local' || request()->server('HTTP_X_FORWARDED_PROTO') === 'https' || request()->secure()) {
+            URL::forceScheme('https');
+        }
+
+        // 2. Otomatis login-kan user pertama jika belum ada session aktif
         try {
             if (!Auth::check()) {
                 $user = User::first();
@@ -24,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
         } catch (\Exception $e) {
-            // Mengabaikan error jika tabel users belum di-migrate
+            // Mengabaikan error jika database/tabel users belum di-migrate
         }
     }
 }
