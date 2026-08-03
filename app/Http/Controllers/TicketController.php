@@ -5,27 +5,27 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use App\Models\Asset;
 use App\Models\Bast;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class TicketController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
+        $selectedBranch = $request->input('branch');
 
         // Query awal dengan Eager Loading
         $query = Ticket::with(['asset', 'user', 'bast'])->latest();
 
-        // 1. Role OUTLET: Hanya melihat tiket buatan sendiri ATAU tiket dari cabang yang sama
+        // 1. Filter Role OUTLET: Hanya melihat tiket buatan sendiri ATAU tiket dari cabang yang sama
         if ($user->role === 'OUTLET') {
             $userBranch = trim($user->branch_code ?? '');
 
             $query->where(function ($q) use ($user, $userBranch) {
-                // Tiket milik user ini
                 $q->where('user_id', $user->id);
 
-                // ATAU tiket dari branch yang sama (hanya disaring jika user memiliki branch_code valid)
                 if (!empty($userBranch)) {
                     $q->orWhere(function ($sub) use ($userBranch) {
                         $sub->whereNotNull('branch_code')
@@ -35,15 +35,36 @@ class TicketController extends Controller
                 }
             });
         } 
-        // 2. Role IT atau MAINTENANCE: Melihat tiket sesuai divisi penanggung jawab
+        // 2. Filter Role IT / MAINTENANCE: Melihat tiket sesuai divisi penanggung jawab
         elseif (in_array($user->role, ['IT', 'MAINTENANCE'])) {
             $query->where('department', $user->role);
         }
-        // 3. Role ADMIN: Melihat seluruh data tiket tanpa filter
+        // 3. Role ADMIN: Melihat seluruh data tiket tanpa filter role
+
+        // Filter Tambahan: Filter Branch dari Form / Dropdown jika dipilih
+        if (!empty($selectedBranch)) {
+            $query->whereHas('user', function ($q) use ($selectedBranch) {
+                $q->where(function ($subQuery) use ($selectedBranch) {
+                    $subQuery->where('branch_code', $selectedBranch)
+                             ->orWhere('branch_name', $selectedBranch);
+                });
+            });
+        }
 
         $tickets = $query->get();
 
-        return view('tickets.index', compact('tickets'));
+        // Ambil daftar Branch unik dari Users & Assets (Tanpa query kolom outlet_code)
+        $branchCodes = User::whereNotNull('branch_code')->pluck('branch_code');
+        $assetBranches = Asset::whereNotNull('branch_code')->pluck('branch_code');
+
+        $branches = $branchCodes
+            ->merge($assetBranches)
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        return view('tickets.index', compact('tickets', 'branches'));
     }
 
     public function create()
@@ -155,7 +176,7 @@ class TicketController extends Controller
             return redirect()->route('tickets.show', $id)->with('info', 'BAST untuk tiket ini sudah diisi.');
         }
 
-        return view('tickets.bast_create', compact('ticket'));
+        return view('tickets.bast.create', compact('ticket'));
     }
 
     public function storeBast(Request $request, $id)
@@ -185,7 +206,7 @@ class TicketController extends Controller
                 'action_taken'   => $request->action_taken,
                 'parts_replaced' => $request->parts_replaced,
                 'attachment'     => $attachmentPath,
-                'completed_at'  => now(),
+                'completed_at'   => now(),
             ]
         );
 
@@ -201,15 +222,22 @@ class TicketController extends Controller
     public function markAsDone($id)
     {
         $ticket = Ticket::findOrFail($id);
-        $user = auth()->user();
 
-        // Validasi Hak Akses: Hanya pembuat tiket atau Admin
-        if ($ticket->user_id !== $user->id && $user->role !== 'ADMIN') {
-            return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menyelesaikan tiket ini.');
+        // Cek Hak Akses: IT & MAINTENANCE Dilarang Menyelesaikan Tiket
+        if (in_array(auth()->user()->role, ['IT', 'MAINTENANCE'])) {
+            return redirect()->back()->with('error', 'Hanya Pelapor / Outlet yang berhak mengonfirmasi tiket Selesai (DONE).');
         }
 
-        $ticket->update(['status' => 'Selesai']);
+        // Pastikan hanya pembuat tiket atau Admin yang bisa menekan DONE
+        if ($ticket->user_id !== auth()->id() && auth()->user()->role !== 'ADMIN') {
+            return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk mengubah status tiket ini.');
+        }
 
-        return redirect()->back()->with('success', 'Tiket berhasil dikonfirmasi SELESAI (DONE).');
+        // Update Status Tiket
+        $ticket->update([
+            'status' => 'Selesai'
+        ]);
+
+        return redirect()->back()->with('success', 'Tiket berhasil dikonfirmasi Selesai (DONE).');
     }
 }

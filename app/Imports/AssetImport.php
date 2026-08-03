@@ -12,13 +12,12 @@ use Throwable;
 class AssetImport implements ToModel, WithHeadingRow, SkipsEmptyRows, SkipsOnError
 {
     /**
-     * Tentukan baris tempat Header/Judul Kolom berada di Excel.
-     * Jika di file Excel kamu baris 1 adalah judul, baris 2 kosong, dan header baru di baris 3,
-     * ubah return 1 menjadi return 3 (atau sesuaikan nomor barisnya).
+     * Menentukan baris tempat Header/Judul Kolom berada di file Excel.
+     * Sesuai dengan format export Excel Maison Feerie, header berada di baris ke-5.
      */
     public function headingRow(): int
     {
-        return 1; 
+        return 5; 
     }
 
     public function model(array $row)
@@ -30,8 +29,9 @@ class AssetImport implements ToModel, WithHeadingRow, SkipsEmptyRows, SkipsOnErr
             $cleanRow[$cleanKey] = is_string($value) ? trim($value) : $value;
         }
 
-        // 1. Tangkap Kode Aset (berbagai kemungkinan penulisan header Excel)
-        $assetCode = $cleanRow['asset_code'] 
+        // 1. Tangkap Kode Aset / Asset ID
+        $assetCode = $cleanRow['asset_id'] 
+            ?? $cleanRow['asset_code'] 
             ?? $cleanRow['kode_aset'] 
             ?? $cleanRow['kode_asset'] 
             ?? $cleanRow['kode'] 
@@ -45,7 +45,7 @@ class AssetImport implements ToModel, WithHeadingRow, SkipsEmptyRows, SkipsOnErr
             ?? $cleanRow['nama']
             ?? null;
 
-        // Jika baris kosong atau nama aset tidak ada, lewati
+        // Jika baris kosong, tidak ada nama aset dan kode aset, lewati
         if (!$assetName && !$assetCode) {
             return null;
         }
@@ -55,20 +55,44 @@ class AssetImport implements ToModel, WithHeadingRow, SkipsEmptyRows, SkipsOnErr
             $assetCode = 'MF-HOTNG-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
         }
 
-        // Ambil branch_code
-        $branchCode = $cleanRow['branch_code'] ?? $cleanRow['kode_cabang'] ?? null;
+        // 3. Ambil Kategori
+        $category = $cleanRow['asset_category_name'] 
+            ?? $cleanRow['category'] 
+            ?? $cleanRow['kategori'] 
+            ?? 'Lain-lain';
+
+        // 4. Ambil branch_code
+        $branchCode = $cleanRow['branch'] 
+            ?? $cleanRow['branch_code'] 
+            ?? $cleanRow['kode_cabang'] 
+            ?? null;
+
         if (!$branchCode) {
             $parts = explode('-', $assetCode);
             $branchCode = (isset($parts[1]) && !empty($parts[1])) ? $parts[1] : 'HOTNG';
         }
 
+        // 5. Tangkap Tanggal Registrasi jika tersedia
+        $registrationDate = null;
+        if (!empty($cleanRow['registration_date'])) {
+            try {
+                $registrationDate = date('Y-m-d', strtotime($cleanRow['registration_date']));
+            } catch (Throwable $e) {
+                $registrationDate = null;
+            }
+        }
+
         return new Asset([
-            'asset_code'  => $assetCode,
-            'asset_name'  => $assetName ?? 'Tanpa Nama',
-            'category'    => $cleanRow['category'] ?? $cleanRow['kategori'] ?? 'Lain-lain',
-            'description' => $cleanRow['description'] ?? $cleanRow['keterangan'] ?? 'Imported from Excel',
-            'branch_code' => $branchCode,
-            'branch_name' => $cleanRow['branch_name'] ?? $cleanRow['nama_cabang'] ?? 'HEAD OFFICE TANGERANG',
+            'asset_code'         => $assetCode,
+            'asset_name'         => $assetName ?? 'Tanpa Nama',
+            'category'           => $category,
+            'description'        => $cleanRow['description'] ?? $cleanRow['keterangan'] ?? 'Imported from Excel',
+            'branch_code'        => $branchCode,
+            'branch_name'        => $cleanRow['branch_name'] ?? $cleanRow['nama_cabang'] ?? $branchCode,
+            'product_code'       => $cleanRow['product_code'] ?? null,
+            'location'           => $cleanRow['location'] ?? null,
+            'registration_date'  => $registrationDate,
+            'status'             => $cleanRow['status'] ?? 'Aktif',
         ]);
     }
 
