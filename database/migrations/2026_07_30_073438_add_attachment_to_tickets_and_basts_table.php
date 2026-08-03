@@ -8,25 +8,43 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Menambahkan kolom attachment pada tabel tickets
-        Schema::table('tickets', function (Blueprint $table) {
-            $table->string('attachment')->nullable()->after('description');
-        });
+        // 1. Menambahkan kolom attachment pada tabel tickets jika belum ada
+        if (Schema::hasTable('tickets') && !Schema::hasColumn('tickets', 'attachment')) {
+            Schema::table('tickets', function (Blueprint $table) {
+                if (Schema::hasColumn('tickets', 'description')) {
+                    $table->string('attachment')->nullable()->after('description');
+                } else {
+                    $table->string('attachment')->nullable();
+                }
+            });
+        }
 
-        // Menambahkan kolom attachment pada tabel basts (agar BAST juga bisa upload foto)
-        Schema::table('basts', function (Blueprint $table) {
-            $table->string('attachment')->nullable()->after('parts_replaced');
-        });
+        // 2. Menambahkan kolom attachment pada tabel basts jika belum ada
+        if (Schema::hasTable('basts') && !Schema::hasColumn('basts', 'attachment')) {
+            Schema::table('basts', function (Blueprint $table) {
+                if (Schema::hasColumn('basts', 'parts_replaced')) {
+                    $table->string('attachment')->nullable()->after('parts_replaced');
+                } else {
+                    $table->string('attachment')->nullable();
+                }
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('tickets', function (Blueprint $table) {
-            $table->dropColumn('attachment');
-        });
+        // Drop kolom attachment pada tabel tickets jika ada
+        if (Schema::hasTable('tickets') && Schema::hasColumn('tickets', 'attachment')) {
+            Schema::table('tickets', function (Blueprint $table) {
+                $table->dropColumn('attachment');
+            });
+        }
 
-        Schema::table('basts', function (Blueprint $table) {
-            $table->dropColumn('attachment');
-        });
+        // Drop kolom attachment pada tabel basts jika ada
+        if (Schema::hasTable('basts') && Schema::hasColumn('basts', 'attachment')) {
+            Schema::table('basts', function (Blueprint $table) {
+                $table->dropColumn('attachment');
+            });
+        }
     }
 };
