@@ -124,12 +124,12 @@ class UserController extends Controller
     }
 
     // Menampilkan Tampilan Matrix & Form Checkbox Hak Akses Menu
-    public function roles()
+    public function roles(Request $request)
     {
         $users = User::all();
         $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET'];
         
-        // Ambil seluruh permission dan kelompokkan berdasarkan kategori (jika model Permission ada)
+        // Ambil seluruh permission dan kelompokkan berdasarkan kategori
         $permissions = class_exists(Permission::class) 
             ? Permission::all()->groupBy('category') 
             : collect();
@@ -157,21 +157,59 @@ class UserController extends Controller
             'permissions' => 'nullable|array',
         ]);
 
-        // Hapus hak akses lama untuk role ini
-        DB::table('role_has_permissions')->where('role', $request->role)->delete();
+        $role = $request->input('role');
+        $permissions = $request->input('permissions', []);
 
-        // Masukkan hak akses baru yang dicentang
-        if ($request->has('permissions') && is_array($request->permissions)) {
-            $data = [];
-            foreach ($request->permissions as $permissionId) {
-                $data[] = [
-                    'role'          => $request->role,
-                    'permission_id' => $permissionId,
-                ];
+        try {
+            DB::beginTransaction();
+
+            // 1. Hapus semua permission lama untuk role terkait
+            DB::table('role_has_permissions')->where('role', $role)->delete();
+
+            // 2. Jika ada permission yang dicentang, proses dan simpan
+            if (!empty($permissions)) {
+                $dataToInsert = [];
+
+                foreach ($permissions as $perm) {
+                    $permissionId = null;
+
+                    // Jika input berupa angka ID (misal: 1, 2, 3)
+                    if (is_numeric($perm)) {
+                        $permissionId = (int) $perm;
+                    } else {
+                        // Jika input berupa nama string (misal: 'users.index'), cari atau buat ID-nya
+                        $permissionId = DB::table('permissions')->where('name', $perm)->value('id');
+
+                        if (!$permissionId) {
+                            $permissionId = DB::table('permissions')->insertGetId([
+                                'name'       => $perm,
+                                'guard_name' => 'web',
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+
+                    if ($permissionId) {
+                        $dataToInsert[] = [
+                            'role'          => $role,
+                            'permission_id' => $permissionId,
+                        ];
+                    }
+                }
+
+                if (!empty($dataToInsert)) {
+                    DB::table('role_has_permissions')->insert($dataToInsert);
+                }
             }
-            DB::table('role_has_permissions')->insert($data);
-        }
 
-        return back()->with('success', 'Hak akses menu untuk role ' . $request->role . ' berhasil diperbarui!');
+            DB::commit();
+
+            return redirect()->back()->with('success', "Hak akses menu untuk role {$role} berhasil diperbarui!");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', 'Gagal memperbarui hak akses: ' . $e->getMessage());
+        }
     }
 }

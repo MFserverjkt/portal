@@ -3,9 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
-use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,16 +19,6 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // 2. Otomatis login-kan user pertama jika belum ada session aktif
-        try {
-            if (!Auth::check()) {
-                $user = User::first();
-                if ($user) {
-                    Auth::login($user);
-                }
-            }
-        } catch (\Exception $e) {
-            // Mengabaikan error jika database/tabel users belum di-migrate
-        }
+        // KODE AUTO-LOGIN DIHAPUS TOTAL AGAR SISTEM LOGIN NORMAL
     }
 }
