@@ -15,15 +15,16 @@ class ReportController extends Controller
      */
     private function getTicketsByDepartmentAndBranch(string $department, ?string $branch)
     {
-        $query = Ticket::with(['asset', 'user', 'bast.technician'])
-            ->where('department', $department)
+        $query = Ticket::with(['asset', 'user', 'bast', 'bast.technician'])
+            ->where('department', $department) // Disesuaikan: Hanya mengecek kolom 'department'
             ->latest();
 
         // Terapkan filter branch jika dipilih (Mengecek di tabel tickets & relasi user)
         if (!empty($branch)) {
             $query->where(function ($q) use ($branch) {
-                // 1. Cek langsung dari kolom branch_code pada tiket
+                // 1. Cek dari kolom branch_code atau branch_name pada tiket
                 $q->where('branch_code', $branch)
+                  ->orWhere('branch_name', $branch)
                   // 2. Fallback: Cek dari branch_code akun pelapor
                   ->orWhereHas('user', function ($userQuery) use ($branch) {
                       $userQuery->where('branch_code', $branch);
@@ -39,8 +40,10 @@ class ReportController extends Controller
      */
     private function getBranchList()
     {
-        // Ambil daftar branch unik dari tiket yang sudah dibuat
-        $ticketBranches = Ticket::whereNotNull('branch_code')->pluck('branch_code');
+        // Ambil daftar branch unik dari tiket
+        $ticketBranches = Ticket::whereNotNull('branch_code')
+            ->pluck('branch_code')
+            ->merge(Ticket::whereNotNull('branch_name')->pluck('branch_name'));
         
         // Ambil daftar branch unik dari data users
         $userBranches = User::whereNotNull('branch_code')->pluck('branch_code');
@@ -72,11 +75,11 @@ class ReportController extends Controller
     public function exportItExcel(Request $request)
     {
         $selectedBranch = $request->input('branch');
-        $tickets = $this->getTicketsByDepartmentAndBranch('IT', $selectedBranch);
+        
+        // Mengirimkan filter branch dan department ('IT') ke ReportCorrectiveExport
+        $fileName = 'Report_Corrective_IT' . ($selectedBranch ? '_' . $selectedBranch : '') . '_' . date('Ymd_His') . '.xlsx';
 
-        $fileName = 'Report_Corrective_IT' . ($selectedBranch ? '_' . $selectedBranch : '') . '.xlsx';
-
-        return Excel::download(new ReportCorrectiveExport($tickets), $fileName);
+        return Excel::download(new ReportCorrectiveExport($selectedBranch, 'IT'), $fileName);
     }
 
     // ------------------------------------------------------------------------
@@ -97,10 +100,10 @@ class ReportController extends Controller
     public function exportMaintenanceExcel(Request $request)
     {
         $selectedBranch = $request->input('branch');
-        $tickets = $this->getTicketsByDepartmentAndBranch('MAINTENANCE', $selectedBranch);
+        
+        // Mengirimkan filter branch dan department ('MAINTENANCE') ke ReportCorrectiveExport
+        $fileName = 'Report_Corrective_Maintenance' . ($selectedBranch ? '_' . $selectedBranch : '') . '_' . date('Ymd_His') . '.xlsx';
 
-        $fileName = 'Report_Corrective_Maintenance' . ($selectedBranch ? '_' . $selectedBranch : '') . '.xlsx';
-
-        return Excel::download(new ReportCorrectiveExport($tickets), $fileName);
+        return Excel::download(new ReportCorrectiveExport($selectedBranch, 'MAINTENANCE'), $fileName);
     }
 }

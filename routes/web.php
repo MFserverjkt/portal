@@ -6,6 +6,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\HcLearningController;
 
 // 1. Redirect halaman utama ke login
 Route::get('/', function () { 
@@ -25,6 +26,19 @@ Route::middleware(['auth'])->group(function () {
         Route::get('user-roles', [UserController::class, 'roles'])->name('users.roles');
         Route::post('user-roles/update', [UserController::class, 'updateRolePermissions'])->name('users.roles.update');
         Route::resource('users', UserController::class);
+    });
+
+    // --- FITUR HC LEARNING ---
+    Route::middleware(['role:ADMIN,IT,HC,OUTLET'])->group(function () {
+        Route::get('hc/e-learning', [HcLearningController::class, 'index'])->name('hc.elearning.index');
+        
+        // Pre-Test
+        Route::get('hc/pre-test', [HcLearningController::class, 'pretest'])->name('hc.pretest.index');
+        Route::post('hc/pre-test', [HcLearningController::class, 'storePretest'])->name('hc.pretest.store');
+        
+        // Post-Test
+        Route::get('hc/post-test', [HcLearningController::class, 'posttest'])->name('hc.posttest.index');
+        Route::post('hc/post-test', [HcLearningController::class, 'storePosttest'])->name('hc.posttest.store');
     });
 
     // --- FITUR REPORT CORRECTIVE ---

@@ -2,47 +2,125 @@
 
 namespace App\Exports;
 
-use Maatwebsite\Excel\Concerns\FromCollection;
+use App\Models\Ticket;
+use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ReportCorrectiveExport implements FromCollection, WithHeadings, WithMapping
+class ReportCorrectiveExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithStyles
 {
-    protected $tickets;
+    protected $branch;
+    protected $department;
 
-    public function __construct($tickets)
+    /**
+     * Menerima parameter filter dari Controller
+     * 
+     * @param string|null $branch
+     * @param string|null $department (Contoh: 'IT' atau 'MAINTENANCE')
+     */
+    public function __construct($branch = null, $department = null)
     {
-        $this->tickets = $tickets;
+        $this->branch = $branch;
+        $this->department = $department;
     }
 
-    public function collection()
+    public function query()
     {
-        return $this->tickets;
+        // Eager loading relasi agar query cepat & efisien
+        $query = Ticket::query()->with(['user', 'asset', 'bast', 'bast.technician']);
+
+        // Filter berdasarkan Branch / Cabang jika dipilih
+        if ($this->branch) {
+            $query->where(function ($q) {
+                $q->where('branch_code', $this->branch)
+                  ->orWhere('branch_name', $this->branch)
+                  ->orWhereHas('user', function ($u) {
+                      $u->where('branch_code', $this->branch);
+                  });
+            });
+        }
+
+        // Filter berdasarkan Department (misal: IT / MAINTENANCE)
+        if ($this->department) {
+            $query->where('department', $this->department);
+        }
+
+        return $query->latest();
     }
 
-    // Header kolom di Excel
+    // 1. HEADER KOLOM
     public function headings(): array
     {
         return [
             'No. Tiket',
+            'Tanggal Tiket',
+            'Tanggal BAST',
+            'Tanggal Done',
             'Pelapor',
+            'Branch',
+            'Nomor Asset',
             'Aset',
             'Keluhan',
+            'Tindakan Perbaikan',
+            'Penggantian Sparepart',
             'Status',
             'Teknisi BAST',
         ];
     }
 
-    // Pemetaan data dari object Ticket ke baris Excel
+    // 2. MAPPING DATA KOLOM
     public function map($ticket): array
     {
         return [
             $ticket->ticket_number,
-            $ticket->user->name ?? '-',
-            $ticket->asset->asset_name ?? '-',
-            $ticket->title,
-            $ticket->status,
-            $ticket->bast->technician->name ?? '-',
+            
+            // Tanggal Tiket
+            $ticket->created_at ? $ticket->created_at->format('d/m/Y H:i') : '-',
+            
+            // Tanggal BAST
+            $ticket->bast?->created_at ? $ticket->bast->created_at->format('d/m/Y H:i') : '-',
+            
+            // Tanggal Done
+            $ticket->completed_at ? \Carbon\Carbon::parse($ticket->completed_at)->format('d/m/Y H:i') : '-',
+            
+            // Pelapor (Prioritas: reporter_name manual -> user->name)
+            $ticket->reporter_name ?? $ticket->user?->name ?? '-',
+            
+            // Branch (Prioritas: branch_name -> branch_code -> user branch_code)
+            $ticket->branch_name ?? $ticket->branch_code ?? $ticket->user?->branch_code ?? '-',
+            
+            // Nomor Asset
+            $ticket->asset?->asset_code ?? $ticket->asset?->code ?? '-',
+            
+            // Nama Aset
+            $ticket->asset?->asset_name ?? $ticket->asset?->name ?? '-',
+            
+            // Keluhan
+            $ticket->title ?? $ticket->description ?? '-',
+            
+            // Tindakan Perbaikan
+            $ticket->bast?->action_taken ?? '-',
+            
+            // Penggantian Sparepart
+            $ticket->bast?->parts_replaced ?? '-',
+            
+            // Status Tiket
+            ucfirst($ticket->status),
+            
+            // Teknisi BAST (Prioritas: technician_name manual -> relasi technician->name)
+            $ticket->bast?->technician_name ?? $ticket->bast?->technician?->name ?? '-',
+        ];
+    }
+
+    // 3. STYLING HEADER EXCEL
+    public function styles(Worksheet $sheet)
+    {
+        return [
+            // Cetak tebal (Bold) pada baris header pertama
+            1 => ['font' => ['bold' => true]],
         ];
     }
 }

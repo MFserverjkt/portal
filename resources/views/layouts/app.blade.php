@@ -119,6 +119,42 @@
                 <hr class="my-2 border-secondary">
             @endif
 
+            <!-- SECTION MENU HC LEARNING -->
+            @if($canAccess('hc.elearning', 'hc.pretest', 'hc.posttest', 'e-Learning', 'Pre-Test', 'Post-Test', 'HC Learning'))
+                <li class="nav-item mt-2">
+                    <small class="text-secondary fw-bold text-uppercase px-2">HC LEARNING</small>
+                </li>
+
+                <!-- 1. Menu e-Learning (Materi & Modul) -->
+                @if($canAccess('hc.elearning', 'e-Learning', 'Materi Learning'))
+                <li>
+                    <a href="{{ route('hc.elearning.index') }}" class="nav-link text-white">
+                        <i class="bi bi-mortarboard me-2"></i> e-Learning
+                    </a>
+                </li>
+                @endif
+
+                    <!-- 2. Menu Pre-Test -->
+                    @if($canAccess('hc.pretest', 'Pre-Test'))
+                    <li>
+                        <a href="{{ route('hc.pretest.index') }}" class="nav-link text-white">
+                            <i class="bi bi-file-earmark-text me-2"></i> Pre-Test
+                        </a>
+                    </li>
+                    @endif
+
+                    <!-- 3. Menu Post-Test -->
+                    @if($canAccess('hc.posttest', 'Post-Test'))
+                    <li>
+                        <a href="{{ route('hc.posttest.index') }}" class="nav-link text-white">
+                            <i class="bi bi-file-earmark-check me-2"></i> Post-Test
+                        </a>
+                    </li>
+                    @endif
+
+                    <hr class="my-2 border-secondary">
+                @endif
+
 
             <!-- SECTION MENU MAINTENANCE -->
             @if($canAccess('report.maintenance', 'Report Corrective Maintenance'))

@@ -104,7 +104,10 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <p class="mb-2"><strong>Teknisi Penanggung Jawab:</strong> {{ $ticket->bast->technician->name ?? '-' }}</p>
+                    Teknisi Penanggung Jawab: 
+                    <span class="fw-bold">
+                        {{ $ticket->bast->technician_name ?? $ticket->bast->technician->name ?? '' }}
+                    </span>
                 </div>
                 <div class="col-md-6">
                     <p class="mb-2">

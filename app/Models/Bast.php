@@ -12,10 +12,10 @@ class Bast extends Model
     protected $fillable = [
         'ticket_id',
         'technician_id',
+        'technician_name',
         'action_taken',
         'parts_replaced',
-        'attachment', // Ditambahkan agar atribut lampiran dapat diisi secara mass-assignment
-        'completed_at',
+        'attachment',
     ];
 
     /**

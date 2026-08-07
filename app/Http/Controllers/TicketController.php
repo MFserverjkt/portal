@@ -112,7 +112,7 @@ class TicketController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'reporter_name' => 'required|string|max:255', // Nama pelapor manual
+            'reporter_name' => 'required|string|max:255',
             'asset_id'      => 'required|exists:assets,id',
             'department'    => 'required|in:IT,MAINTENANCE',
             'title'         => 'required|string|max:255',
@@ -145,8 +145,8 @@ class TicketController extends Controller
 
         Ticket::create([
             'ticket_number' => 'TKT-' . date('Ymd') . '-' . rand(1000, 9999),
-            'user_id'       => $user->id, // Mengunci akun pembuat tiket (User/Outlet yang login)
-            'reporter_name' => $request->reporter_name, // Menyimpan teks nama pelapor manual
+            'user_id'       => $user->id,
+            'reporter_name' => $request->reporter_name,
             'asset_id'      => $request->asset_id,
             'department'    => $request->department,
             'title'         => $request->title,
@@ -199,14 +199,14 @@ class TicketController extends Controller
         }
 
         // Menggunakan updateOrCreate untuk mencegah error UNIQUE constraint
-        Bast::updateOrCreate(
+        $ticket->bast()->updateOrCreate(
             ['ticket_id' => $ticket->id],
             [
-                'technician_id' => auth()->id(),
-                'action_taken'   => $request->action_taken,
-                'parts_replaced' => $request->parts_replaced,
-                'attachment'     => $attachmentPath,
-                'completed_at'   => now(),
+                'technician_id'   => auth()->id(),
+                'technician_name' => $request->technician_name, // <-- HARUS ADA BARIS INI
+                'action_taken'    => $request->action_taken,
+                'parts_replaced'  => $request->parts_replaced,
+                'attachment'      => $attachmentPath ?? $ticket->bast->attachment ?? null,
             ]
         );
 
