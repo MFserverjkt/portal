@@ -7,6 +7,7 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\HcLearningController;
+use App\Http\Controllers\PanduanController;
 
 // 1. Redirect halaman utama ke login
 Route::get('/', function () { 
@@ -20,6 +21,9 @@ Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
 // 3. Protected Routes (Wajib Login)
 Route::middleware(['auth'])->group(function () {
+
+    // --- FITUR PANDUAN (DAPAT DIAKSES OLEH SEMUA ROLE) ---
+    Route::get('panduan', [PanduanController::class, 'index'])->name('panduan.index');
 
     // --- FITUR ADMIN & IT (USER & HAK AKSES MANAGEMENT) ---
     Route::middleware(['role:ADMIN,IT'])->group(function () {
@@ -78,9 +82,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
         Route::get('tickets/{id}', [TicketController::class, 'show'])->name('tickets.show');
 
-        // Konfirmasi DONE oleh User/Outlet Pembuat Tiket
-        Route::post('tickets/{id}/done', [TicketController::class, 'markAsDone'])->name('tickets.markAsDone');
-        Route::patch('tickets/{id}/done-patch', [TicketController::class, 'markAsDone'])->name('tickets.done');
+        // Konfirmasi DONE (Mendukung HTTP Method POST dan PATCH untuk fleksibilitas Form Blade)
+        Route::match(['post', 'patch'], 'tickets/{id}/done', [TicketController::class, 'markAsDone'])->name('tickets.markAsDone');
+        Route::match(['post', 'patch'], 'tickets/{id}/done-alias', [TicketController::class, 'markAsDone'])->name('tickets.done');
     });
 
 });

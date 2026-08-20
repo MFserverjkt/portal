@@ -8,6 +8,7 @@ use App\Models\Bast;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class TicketController extends Controller
 {
@@ -69,27 +70,8 @@ class TicketController extends Controller
 
     public function create()
     {
-        $user = auth()->user();
-
-        // 1. Jika role ADMIN atau IT, tampilkan SEMUA aset dari seluruh cabang
-        if (in_array($user->role, ['ADMIN', 'IT'])) {
-            $assets = Asset::orderBy('asset_name', 'asc')->get();
-        } else {
-            // 2. Untuk role OUTLET, filter berdasarkan branch_code user
-            $branchCode = trim($user->branch_code ?? '');
-
-            // Coba cari aset berdasarkan branch_code persis
-            $assets = Asset::where('branch_code', $branchCode)
-                           ->orderBy('asset_name', 'asc')
-                           ->get();
-
-            // 3. Cadangan (Fallback): Jika data aset kosong, cari berdasarkan pola kode aset
-            if ($assets->isEmpty() && !empty($branchCode) && $branchCode !== 'HOTNG') {
-                $assets = Asset::where('asset_code', 'LIKE', "%-{$branchCode}-%")
-                               ->orderBy('asset_name', 'asc')
-                               ->get();
-            }
-        }
+        // Tampilkan SELURUH aset terdaftar tanpa membatasi cabang pengguna
+        $assets = Asset::orderBy('asset_name', 'asc')->get();
 
         // Kumpulan Cabang Dinamis dari Tabel Assets
         $branches = Asset::whereNotNull('branch_code')
@@ -99,7 +81,7 @@ class TicketController extends Controller
                          ->pluck('branch_name', 'branch_code')
                          ->toArray();
 
-        // Fallback default jika data aset masih kosong
+        // Fallback default jika data cabang kosong
         if (empty($branches)) {
             $branches = [
                 'HOTNG' => 'HEAD OFFICE TANGERANG',
@@ -137,7 +119,7 @@ class TicketController extends Controller
             ?? $user->branch_code 
             ?? 'HOTNG';
 
-        // Penentuan branch_name yang aman tanpa bergantung pada variabel eksternal
+        // Penentuan branch_name yang aman
         $branchName = $asset->branch_name 
             ?? $user->branch_name 
             ?? Asset::where('branch_code', $branchCode)->value('branch_name') 
@@ -203,7 +185,7 @@ class TicketController extends Controller
             ['ticket_id' => $ticket->id],
             [
                 'technician_id'   => auth()->id(),
-                'technician_name' => $request->technician_name, // <-- HARUS ADA BARIS INI
+                'technician_name' => $request->technician_name ?? auth()->user()->name,
                 'action_taken'    => $request->action_taken,
                 'parts_replaced'  => $request->parts_replaced,
                 'attachment'      => $attachmentPath ?? $ticket->bast->attachment ?? null,
@@ -219,7 +201,7 @@ class TicketController extends Controller
     /**
      * Konfirmasi Tiket Selesai (DONE) oleh User Pembuat Tiket / Admin
      */
-    public function markAsDone($id)
+    public function markAsDone(Request $request, $id)
     {
         $ticket = Ticket::findOrFail($id);
 
@@ -233,11 +215,29 @@ class TicketController extends Controller
             return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk mengubah status tiket ini.');
         }
 
-        // Update Status Tiket
-        $ticket->update([
-            'status' => 'Selesai'
+        // Validasi input tanggal penyelesaian
+        $request->validate([
+            'completed_at' => 'nullable|date',
         ]);
 
-        return redirect()->back()->with('success', 'Tiket berhasil dikonfirmasi Selesai (DONE).');
+        // Format tanggal penyelesaian dari modal atau default waktu sekarang
+        $completedAt = $request->filled('completed_at') 
+            ? Carbon::parse($request->completed_at) 
+            : now();
+
+        // Update Status Tiket dan Simpan Tanggal Selesai
+        $ticket->update([
+            'status'       => 'Selesai',
+            'completed_at' => $completedAt,
+        ]);
+
+        // Jika BAST tersedia, simpan juga tanggal penyelesaian ke tabel BAST
+        if ($ticket->bast) {
+            $ticket->bast->update([
+                'completed_at' => $completedAt,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Tiket berhasil dikonfirmasi Selesai (DONE) pada tanggal ' . $completedAt->format('d/m/Y H:i') . '.');
     }
 }

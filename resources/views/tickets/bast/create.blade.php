@@ -13,7 +13,9 @@
 
                 <!-- 1. NAMA PETUGAS YANG MENGERJAKAN -->
                 <div class="mb-3">
-                    <label for="technician_name" class="form-label fw-bold">Nama Petugas yang Mengerjakan <span class="text-danger">*</span></label>
+                    <label for="technician_name" class="form-label fw-bold">
+                        Nama Petugas yang Mengerjakan <span class="text-danger">*</span>
+                    </label>
                     <input type="text" 
                            name="technician_name" 
                            id="technician_name" 
@@ -28,7 +30,9 @@
 
                 <!-- 2. TINDAKAN PERBAIKAN -->
                 <div class="mb-3">
-                    <label for="action_taken" class="form-label fw-bold">Tindakan Perbaikan <span class="text-danger">*</span></label>
+                    <label for="action_taken" class="form-label fw-bold">
+                        Tindakan Perbaikan <span class="text-danger">*</span>
+                    </label>
                     <textarea name="action_taken" 
                               id="action_taken" 
                               class="form-control @error('action_taken') is-invalid @enderror" 
@@ -40,28 +44,45 @@
                     @enderror
                 </div>
 
-                <!-- 3. PENGGANTIAN SPAREPART / SUKU CADANG -->
+                <!-- 3. PENGGANTIAN SPAREPART / SUKU CADANG (SEKARANG WAJIB) -->
                 <div class="mb-3">
-                    <label for="parts_replaced" class="form-label fw-bold">Penggantian Sparepart / Suku Cadang (Opsional)</label>
+                    <label for="parts_replaced" class="form-label fw-bold">
+                        Penggantian Sparepart / Suku Cadang <span class="text-danger">*</span>
+                    </label>
                     <textarea name="parts_replaced" 
                               id="parts_replaced" 
                               class="form-control @error('parts_replaced') is-invalid @enderror" 
                               rows="2" 
-                              placeholder="Sebutkan sparepart yang diganti (jika ada)...">{{ old('parts_replaced', $ticket->bast->parts_replaced ?? '') }}</textarea>
+                              placeholder="Sebutkan sparepart yang diganti (Isi '-' atau 'Tidak ada' jika tidak ada penggantian)..." 
+                              required>{{ old('parts_replaced', $ticket->bast->parts_replaced ?? '') }}</textarea>
                     @error('parts_replaced')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
 
-                <!-- 4. UNGGAH BUKTI PEKERJAAN / LAMPIRAN BAST -->
+                <!-- 4. UNGGAH BUKTI PEKERJAAN / LAMPIRAN BAST (SEKARANG WAJIB) -->
                 <div class="mb-4">
-                    <label for="attachment" class="form-label fw-bold">Unggah Bukti Pekerjaan / Lampiran BAST (Foto/PDF)</label>
+                    <label for="attachment" class="form-label fw-bold">
+                        Unggah Bukti Pekerjaan / Lampiran BAST (Foto/PDF) <span class="text-danger">*</span>
+                    </label>
                     <input type="file" 
                            name="attachment" 
                            id="attachment" 
                            class="form-control @error('attachment') is-invalid @enderror" 
-                           accept="image/*,.pdf">
-                    <small class="text-muted">Format yang didukung: JPG, JPEG, PNG, PDF (Maksimal 5MB)</small>
+                           accept="image/*,.pdf"
+                           {{ isset($ticket->bast->attachment) ? '' : 'required' }}>
+                    
+                    <small class="text-muted d-block mt-1">
+                        Format yang didukung: JPG, JPEG, PNG, PDF (Maksimal 5MB)
+                    </small>
+
+                    <!-- Menampilkan info file jika BAST sudah pernah dibuat/diunggah -->
+                    @if(isset($ticket->bast->attachment))
+                        <div class="mt-2 small text-success">
+                            <i class="bi bi-file-check me-1"></i> File lampiran saat ini sudah terunggah.
+                        </div>
+                    @endif
+
                     @error('attachment')
                         <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror

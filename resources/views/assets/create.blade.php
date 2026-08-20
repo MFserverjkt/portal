@@ -73,7 +73,20 @@
                         <label class="form-label fw-semibold text-dark">Branch (Cabang Penempatan) <span class="text-danger">*</span></label>
                         <select name="branch_code" class="form-select @error('branch_code') is-invalid @enderror" required>
                             <option value="" disabled {{ old('branch_code') ? '' : 'selected' }}>-- Pilih Cabang Penempatan --</option>
-                            @foreach($branches ?? [] as $code => $name)
+                            
+                            @php
+                                // Pengecekan ketat: Jika $branches tidak ada atau nilainya kosong ([] / null / empty Collection)
+                                $hasBranches = isset($branches) && (is_countable($branches) ? count($branches) > 0 : !empty($branches));
+                                
+                                // Ambil langsung dari tabel 'branches' jika $branches dari Controller kosong
+                                $listBranches = $hasBranches ? $branches : \DB::table('branches')->orderBy('name', 'asc')->get();
+                            @endphp
+
+                            @foreach($listBranches as $key => $branch)
+                                @php
+                                    $code = is_object($branch) ? ($branch->code ?? $key) : (is_array($branch) ? ($branch['code'] ?? $key) : $key);
+                                    $name = is_object($branch) ? ($branch->name ?? '') : (is_array($branch) ? ($branch['name'] ?? $branch) : $branch);
+                                @endphp
                                 <option value="{{ $code }}" {{ old('branch_code') == $code ? 'selected' : '' }}>
                                     [{{ $code }}] {{ $name }}
                                 </option>
@@ -108,10 +121,10 @@
                     </div>
                 </div>
 
-                <!-- Tombol Submit di Kanan Bawah -->
+                <!-- Tombol Submit -->
                 <div class="d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary px-4 fw-semibold">
-                        Simpan Aset
+                        <i class="bi bi-save me-1"></i> Simpan Aset
                     </button>
                 </div>
             </form>

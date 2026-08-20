@@ -55,12 +55,20 @@
                     <td><strong>{{ $asset->asset_code }}</strong></td>
                     <td>{{ $asset->asset_name }}</td>
                     <td><span class="badge bg-{{ $asset->category === 'IT' ? 'info' : 'warning' }}">{{ $asset->category }}</span></td>
-                    <td>{{ $asset->location }}</td>
+                    
+                    <!-- Perbaikan Lokasi: Membaca branch_name, branch_code, atau location -->
+                    <td>{{ $asset->branch_name ?? $asset->branch_code ?? $asset->location ?? '-' }}</td>
+                    
+                    <!-- Perbaikan Kondisi: Membaca status atau condition -->
                     <td>
-                        <span class="badge bg-{{ $asset->condition === 'Baik' ? 'success' : ($asset->condition === 'Rusak Ringan' ? 'warning' : 'danger') }}">
-                            {{ $asset->condition }}
+                        @php
+                            $status = $asset->status ?? $asset->condition ?? 'Baik';
+                        @endphp
+                        <span class="badge bg-{{ in_array($status, ['Baik', 'Bagus / Normal', 'Bagus']) ? 'success' : ($status === 'Rusak Ringan' ? 'warning' : 'danger') }}">
+                            {{ $status }}
                         </span>
                     </td>
+                    
                     <td>
                         <a href="{{ route('assets.edit', $asset->id) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
                         <form action="{{ route('assets.destroy', $asset->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin hapus aset ini?')">

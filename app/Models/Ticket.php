@@ -22,6 +22,14 @@ class Ticket extends Model
         'branch_code',
         'branch_name',
         'status',
+        'completed_at',
+    ];
+
+    /**
+     * Cast tipe data kolom database ke instance Carbon / Datetime
+     */
+    protected $casts = [
+        'completed_at' => 'datetime',
     ];
 
     /**

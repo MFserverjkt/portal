@@ -62,7 +62,6 @@
                                 {{ $ticket->reporter_name ?? $ticket->user->name ?? '-' }}
                             </div>
                             
-                            {{-- Tampilkan lokasi branch dari record TIKET terlebih dahulu --}}
                             @php
                                 $branchInfo = $ticket->branch_code 
                                     ?? $ticket->branch_name 
@@ -113,15 +112,53 @@
                                     </a>
                                 @endif
 
-                                <!-- Tombol DONE hanya untuk Pelapor Tiket (OUTLET/Pembuat Tiket) atau ADMIN -->
-                                <!-- Role IT & MAINTENANCE sengaja dikecualikan -->
+                                <!-- Tombol DONE (Membuka Modal Input Tanggal Selesai) -->
                                 @if($ticket->status === 'Menunggu Konfirmasi' && ($ticket->user_id === auth()->id() || auth()->user()->role === 'ADMIN') && !in_array(auth()->user()->role, ['IT', 'MAINTENANCE']))
-                                    <form action="{{ route('tickets.markAsDone', $ticket->id) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Apakah Anda yakin masalah sudah terselesaikan?')" title="Konfirmasi Selesai">
-                                            <i class="bi bi-check-circle me-1"></i> DONE
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-success btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalDone{{ $ticket->id }}" title="Konfirmasi Selesai">
+                                        <i class="bi bi-check-circle me-1"></i> DONE
+                                    </button>
+
+                                    <!-- MODAL POPUP INPUT TANGGAL SELESAI -->
+                                    <div class="modal fade" id="modalDone{{ $ticket->id }}" tabindex="-1" aria-labelledby="modalDoneLabel{{ $ticket->id }}" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content text-start">
+                                                <form action="{{ route('tickets.markAsDone', $ticket->id) }}" method="POST">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <div class="modal-header bg-success text-white">
+                                                        <h5 class="modal-title fs-6 fw-bold" id="modalDoneLabel{{ $ticket->id }}">
+                                                            <i class="bi bi-calendar-check me-2"></i>Konfirmasi Tiket Selesai
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p class="mb-3 text-dark">
+                                                            Silakan pilih tanggal & waktu penyelesaian untuk tiket <strong>{{ $ticket->ticket_number }}</strong>:
+                                                        </p>
+                                                        
+                                                        <div class="mb-3">
+                                                            <label for="completed_at_{{ $ticket->id }}" class="form-label fw-bold text-dark">Tanggal & Waktu Selesai <span class="text-danger">*</span></label>
+                                                            <input 
+                                                                type="datetime-local" 
+                                                                name="completed_at" 
+                                                                id="completed_at_{{ $ticket->id }}"
+                                                                class="form-control" 
+                                                                value="{{ now()->format('Y-m-d\TH:i') }}" 
+                                                                required
+                                                            >
+                                                            <small class="text-muted">Tanggal ini akan dicatat dalam laporan corrective.</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                                                        <button type="submit" class="btn btn-success btn-sm fw-bold">
+                                                            <i class="bi bi-check-lg me-1"></i> Simpan & Selesaikan
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 @endif
                             </div>
                         </td>

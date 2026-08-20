@@ -17,7 +17,14 @@
         </div>
     @endif
 
-    <!-- Detail Form Tiket (Dibuat Sebelum BAST) -->
+    @if (session('info'))
+        <div class="alert alert-info alert-dismissible fade show mb-3" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i> {{ session('info') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    <!-- Detail Form Tiket -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Form Tiket: {{ $ticket->ticket_number ?? $ticket->ticket_code }}</h5>
@@ -63,10 +70,10 @@
                     </p>
                 </div>
             </div>
-            
+
             <h6><strong>Judul Keluhan:</strong></h6>
             <p class="border p-2 bg-light rounded">{{ $ticket->title }}</p>
-            
+
             <h6><strong>Deskripsi Kerusakan:</strong></h6>
             <p class="border p-2 bg-light rounded">{{ $ticket->description }}</p>
 
@@ -75,8 +82,9 @@
                 <h6 class="mt-3"><strong>Bukti Lampiran Kerusakan:</strong></h6>
                 <div class="border p-3 bg-light rounded">
                     @php 
-                        $ext = pathinfo($ticket->attachment, PATHINFO_EXTENSION); 
-                        $ticketFileUrl = asset('storage/' . $ticket->attachment);
+                        $ticketCleanPath = ltrim(str_replace('public/', '', $ticket->attachment), '/');
+                        $ext = pathinfo($ticketCleanPath, PATHINFO_EXTENSION); 
+                        $ticketFileUrl = asset('storage/' . $ticketCleanPath);
                     @endphp
 
                     @if(in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'webp', 'gif']))
@@ -94,7 +102,7 @@
         </div>
     </div>
 
-    <!-- Tampilan Form BAST (Otomatis Muncul Setelah BAST Diisi) -->
+    <!-- Tampilan Form BAST -->
     @if($ticket->bast)
     <div class="card border-success shadow-sm mb-4">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
@@ -104,19 +112,21 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-md-6">
-                    Teknisi Penanggung Jawab: 
-                    <span class="fw-bold">
-                        {{ $ticket->bast->technician_name ?? $ticket->bast->technician->name ?? '' }}
-                    </span>
+                    <p class="mb-2">
+                        <strong>Teknisi Penanggung Jawab:</strong> 
+                        <span class="fw-bold">
+                            {{ $ticket->bast->technician_name ?? $ticket->bast->technician->name ?? '-' }}
+                        </span>
+                    </p>
                 </div>
                 <div class="col-md-6">
                     <p class="mb-2">
-                        <strong>Waktu Penyelesaian:</strong> 
-                        {{ $ticket->bast->completed_at ? \Carbon\Carbon::parse($ticket->bast->completed_at)->translatedFormat('d F Y H:i') : '-' }}
+                        <strong>Waktu BAST:</strong> 
+                        {{ $ticket->bast->created_at ? \Carbon\Carbon::parse($ticket->bast->created_at)->translatedFormat('d F Y H:i') : '-' }}
                     </p>
                 </div>
             </div>
-            
+
             <h6><strong>Tindakan Perbaikan:</strong></h6>
             <p class="border p-2 bg-light rounded">{{ $ticket->bast->action_taken }}</p>
 
@@ -129,8 +139,9 @@
                 @if($ticket->bast->attachment)
                     <div class="border p-3 bg-light rounded">
                         @php 
-                            $bastExt = pathinfo($ticket->bast->attachment, PATHINFO_EXTENSION); 
-                            $bastFileUrl = asset('storage/' . $ticket->bast->attachment);
+                            $bastCleanPath = ltrim(str_replace('public/', '', $ticket->bast->attachment), '/');
+                            $bastExt = pathinfo($bastCleanPath, PATHINFO_EXTENSION); 
+                            $bastFileUrl = asset('storage/' . $bastCleanPath);
                         @endphp
 
                         @if(in_array(strtolower($bastExt), ['jpg', 'jpeg', 'png', 'webp', 'gif']))
@@ -162,6 +173,25 @@
             <i class="bi bi-arrow-left me-1"></i> Kembali
         </a>
 
+        <div>
+            <!-- Tombol Buat/Edit BAST khusus Teknisi (IT / MAINTENANCE) -->
+            @if(in_array(auth()->user()->role, ['IT', 'MAINTENANCE', 'ADMIN']) && !$ticket->bast && $ticket->status !== 'Selesai')
+                <a href="{{ route('tickets.bast.create', $ticket->id) }}" class="btn btn-warning text-dark fw-bold">
+                    <i class="bi bi-pencil-square me-1"></i> Isi Form BAST
+                </a>
+            @endif
+
+            <!-- Tombol Konfirmasi Selesai (DONE) khusus Pelapor Tiket / Admin -->
+            @if($ticket->status === 'Menunggu Konfirmasi' && (auth()->id() === $ticket->user_id || auth()->user()->role === 'ADMIN'))
+                <form action="{{ route('tickets.done', $ticket->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin pengerjaan perbaikan telah selesai dengan baik?');">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="btn btn-success fw-bold">
+                        <i class="bi bi-check-circle-fill me-1"></i> Konfirmasi Tiket Selesai (DONE)
+                    </button>
+                </form>
+            @endif
+        </div>
     </div>
 </div>
 @endsection

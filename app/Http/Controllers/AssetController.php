@@ -6,24 +6,43 @@ use App\Models\Asset;
 use App\Exports\AssetExport;
 use App\Imports\AssetImport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 
 class AssetController extends Controller
 {
-    // Daftar Cabang / Branch Resmi Maison Feerie
-    private $branches = [
-        'HOTNG' => 'HEAD OFFICE TANGERANG',
-        'MFLW'  => 'MAISON FEERIE LIVING WORLD',
-        'MFBX'  => 'MAISON FEERIE BINTARO EXCHANGE',
-        'MFCP'  => 'MAISON FEERIE CENTRAL PARK',
-        'MFLMN' => 'MAISON FEERIE LIPPO MALL NUSANTARA',
-        'MFWCT' => 'MAISON FEERIE WORLD CAPITAL TOWER',
-        'MFBDK' => 'MAISON FEERIE BIDAKARA 2',
-        'MFKCH' => 'MAISON FEERIE KERETA CEPAT HALIM',
-        'MFPMB' => 'MAISON FEERIE PAKUWON MALL BEKASI',
-        'MFSMB' => 'MAISON FEERIE SUMMARECON MALL BEKASI',
-    ];
+    /**
+     * Helper privat untuk mengambil daftar cabang dinamis dari database.
+     * Jika database kosong, menggunakan fallback daftar cabang bawaan.
+     */
+    private function getBranches()
+    {
+        try {
+            // Ambil dari tabel 'branches' dengan format [code => name]
+            $branches = DB::table('branches')->orderBy('name', 'asc')->pluck('name', 'code')->toArray();
+
+            if (!empty($branches)) {
+                return $branches;
+            }
+        } catch (\Exception $e) {
+            // Abaikan jika tabel belum terbuat/error
+        }
+
+        // Fallback jika tabel branches di DB belum di-seed/kosong
+        return [
+            'HOTNG' => 'HEAD OFFICE TANGERANG',
+            'MFLW'  => 'MAISON FEERIE LIVING WORLD',
+            'MFBX'  => 'MAISON FEERIE BINTARO EXCHANGE',
+            'MFCP'  => 'MAISON FEERIE CENTRAL PARK',
+            'MFLMN' => 'MAISON FEERIE LIPPO MALL NUSANTARA',
+            'MFWCT' => 'MAISON FEERIE WORLD CAPITAL TOWER',
+            'MFBDK' => 'MAISON FEERIE BIDAKARA 2',
+            'MFKCH' => 'MAISON FEERIE KERETA CEPAT HALIM',
+            'MFPMB' => 'MAISON FEERIE PAKUWON MALL BEKASI',
+            'MFSMB' => 'MAISON FEERIE SUMMARECON MALL BEKASI',
+        ];
+    }
 
     // Tampilan Inventori Aset IT & Maintenance
     public function index()
@@ -34,8 +53,8 @@ class AssetController extends Controller
 
     public function create(Request $request)
     {
-        // Ambil daftar branches dari properti kelas
-        $branches = $this->branches;
+        // Ambil cabang dinamis dari database
+        $branches = $this->getBranches();
 
         return view('assets.create', compact('branches'));
     }
@@ -53,6 +72,8 @@ class AssetController extends Controller
             'description'   => 'nullable|string',
         ]);
 
+        $branches = $this->getBranches();
+
         // Tangkap kode branch yang dipilih user, jika kosong fallback ke cabang user / 'HOTNG'
         $branchCode = $request->branch_code ?? (auth()->user()->branch_code ?? 'HOTNG');
         $registerDate = $request->register_date ?? date('Y-m-d');
@@ -67,7 +88,7 @@ class AssetController extends Controller
             'category'      => $request->category,
             'brand'         => $request->brand,
             'branch_code'   => $branchCode,
-            'branch_name'   => $this->branches[$branchCode] ?? $branchCode,
+            'branch_name'   => $branches[$branchCode] ?? $branchCode,
             'register_date' => $registerDate,
             'status'        => $request->status,
             'description'   => $request->description,
@@ -79,7 +100,7 @@ class AssetController extends Controller
     public function edit($id)
     {
         $asset = Asset::findOrFail($id);
-        $branches = $this->branches;
+        $branches = $this->getBranches();
 
         return view('assets.edit', compact('asset', 'branches'));
     }
@@ -97,8 +118,9 @@ class AssetController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $branches = $this->getBranches();
         $data = $request->all();
-        $data['branch_name'] = $this->branches[$request->branch_code] ?? $request->branch_code;
+        $data['branch_name'] = $branches[$request->branch_code] ?? $request->branch_code;
 
         $asset->update($data);
 

@@ -12,7 +12,7 @@
             
             <div class="mb-3">
                 <label class="form-label fw-bold">Kode Aset</label>
-                <input type="text" name="asset_code" value="{{ old('asset_code', $asset->asset_code) }}" class="form-control" required>
+                <input type="text" name="asset_code" value="{{ old('asset_code', $asset->asset_code) }}" class="form-control" required readonly>
             </div>
 
             <div class="mb-3">
@@ -23,22 +23,37 @@
             <div class="mb-3">
                 <label class="form-label fw-bold">Kategori Aset</label>
                 <select name="category" class="form-select" required>
-                    <option value="IT" {{ $asset->category == 'IT' ? 'selected' : '' }}>IT</option>
-                    <option value="MAINTENANCE" {{ $asset->category == 'MAINTENANCE' ? 'selected' : '' }}>MAINTENANCE</option>
+                    <option value="IT" {{ old('category', $asset->category) == 'IT' ? 'selected' : '' }}>IT</option>
+                    <option value="MAINTENANCE" {{ old('category', $asset->category) == 'MAINTENANCE' ? 'selected' : '' }}>MAINTENANCE</option>
+                </select>
+            </div>
+
+            <!-- Lokasi Aset (Dropdown Cabang dari DB) -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Lokasi Aset</label>
+                <select name="branch_code" class="form-select" required>
+                    <option value="" disabled>-- Pilih Lokasi Cabang --</option>
+                    
+                    @php
+                        // Memeriksa $branches dari controller, jika kosong ambil langsung dari DB
+                        $hasBranches = isset($branches) && (is_countable($branches) ? count($branches) > 0 : !empty($branches));
+                        $listBranches = $hasBranches ? $branches : \DB::table('branches')->orderBy('name', 'asc')->pluck('name', 'code')->toArray();
+                    @endphp
+
+                    @foreach($listBranches as $code => $name)
+                        <option value="{{ $code }}" {{ old('branch_code', $asset->branch_code ?? $asset->location) == $code ? 'selected' : '' }}>
+                            [{{ $code }}] {{ $name }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
 
             <div class="mb-3">
-                <label class="form-label fw-bold">Lokasi Aset</label>
-                <input type="text" name="location" value="{{ old('location', $asset->location) }}" class="form-control" required>
-            </div>
-
-            <div class="mb-3">
                 <label class="form-label fw-bold">Kondisi Aset</label>
-                <select name="condition" class="form-select" required>
-                    <option value="Baik" {{ $asset->condition == 'Baik' ? 'selected' : '' }}>Baik</option>
-                    <option value="Rusak Ringan" {{ $asset->condition == 'Rusak Ringan' ? 'selected' : '' }}>Rusak Ringan</option>
-                    <option value="Rusak Berat" {{ $asset->condition == 'Rusak Berat' ? 'selected' : '' }}>Rusak Berat</option>
+                <select name="status" class="form-select" required>
+                    <option value="Baik" {{ old('status', $asset->status ?? $asset->condition) == 'Baik' || old('status', $asset->status ?? $asset->condition) == 'Bagus / Normal' ? 'selected' : '' }}>Baik</option>
+                    <option value="Rusak Ringan" {{ old('status', $asset->status ?? $asset->condition) == 'Rusak Ringan' ? 'selected' : '' }}>Rusak Ringan</option>
+                    <option value="Rusak Berat" {{ old('status', $asset->status ?? $asset->condition) == 'Rusak Berat' ? 'selected' : '' }}>Rusak Berat</option>
                 </select>
             </div>
 

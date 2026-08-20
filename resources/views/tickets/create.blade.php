@@ -79,17 +79,17 @@
                 @enderror
             </div>
 
-            <!-- Aset Kerusakan -->
+            <!-- Aset Kerusakan (Menampilkan Seluruh Aset Terdaftar) -->
             <div class="mb-3">
                 <label class="form-label fw-bold">Pilih Aset Kerusakan <span class="text-danger">*</span></label>
                 <select name="asset_id" id="asset-select" class="form-select @error('asset_id') is-invalid @enderror" required>
                     <option value="">-- Ketik / Cari Aset --</option>
                     @forelse($assets as $asset)
                         <option value="{{ $asset->id }}" {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
-                            {{ $asset->asset_code }} - {{ $asset->asset_name }} ({{ $asset->brand ?? $asset->branch_name }})
+                            {{ $asset->asset_code }} - {{ $asset->asset_name }} {{ $asset->brand ? '('.$asset->brand.')' : '' }} [{{ $asset->branch_name ?? $asset->branch_code ?? 'Semua Cabang' }}]
                         </option>
                     @empty
-                        <option value="" disabled>Tidak ada aset terdaftar pada cabang Anda</option>
+                        <option value="" disabled>Tidak ada data aset terdaftar dalam sistem</option>
                     @endforelse
                 </select>
                 @error('asset_id')
@@ -156,7 +156,7 @@
 <script>
     $(document).ready(function() {
         $('#asset-select').select2({
-            placeholder: "-- Ketik untuk mencari aset (Kode / Nama / Brand) --",
+            placeholder: "-- Ketik untuk mencari aset (Kode / Nama / Brand / Cabang) --",
             allowClear: true,
             width: '100%'
         });

@@ -19,41 +19,35 @@
 
     // 1. Ambil Nama User & Role (Kapital & Clean)
     $userName = $user?->name ?? $user?->username ?? 'User';
-    $userRole = strtoupper(trim($user?->role ?? 'GUEST'));
+    $primaryRole = $user?->getRoleNames()->first() ?? $user?->role ?? 'GUEST';
+    $userRole = strtoupper(trim($primaryRole));
 
-    // 2. Ambil PERMISSION (Baik ID maupun Name) untuk Role ini dari DB melalui JOIN
-    $rolePermissions = \DB::table('role_has_permissions')
-        ->leftJoin('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
-        ->where('role_has_permissions.role', $userRole)
-        ->select('role_has_permissions.permission_id', 'permissions.name as perm_name')
-        ->get();
-
-    // Simpan seluruh ID dan Name ke dalam satu array aktif
-    $activePermissions = [];
-    foreach ($rolePermissions as $p) {
-        if ($p->permission_id) {
-            $activePermissions[] = (string) $p->permission_id;
-        }
-        if ($p->perm_name) {
-            $activePermissions[] = strtolower(trim($p->perm_name));
-        }
+    // 2. Ambil PERMISSION resmi milik User dari Spatie Permission
+    $userPermissions = [];
+    if ($user) {
+        $userPermissions = $user->getAllPermissions()
+            ->pluck('name')
+            ->map(fn($item) => strtolower(trim($item)))
+            ->toArray();
     }
 
     // 3. Helper Closure Pengecekan Akses Menu Presisi
-    $canAccess = function(...$permNames) use ($userRole, $activePermissions) {
+    $canAccess = function(...$permNames) use ($user, $userRole, $userPermissions) {
+        if (!$user) return false;
+
         // Hanya Role ADMIN / ADMINISTRATOR yang otomatis dapat Full Access
         if (in_array($userRole, ['ADMIN', 'ADMINISTRATOR'])) {
             return true;
         }
 
-        // Jika tidak ada permission sama sekali di DB untuk role ini
-        if (empty($activePermissions)) {
+        // Jika tidak ada permission sama sekali untuk user ini
+        if (empty($userPermissions)) {
             return false;
         }
 
-        // Cek apakah parameter yang dicari ada di daftar activePermissions
+        // Cek apakah parameter yang dicari ada di daftar permission user
         foreach ($permNames as $perm) {
-            if (in_array(strtolower(trim($perm)), $activePermissions)) {
+            if (in_array(strtolower(trim($perm)), $userPermissions)) {
                 return true;
             }
         }
@@ -134,26 +128,26 @@
                 </li>
                 @endif
 
-                    <!-- 2. Menu Pre-Test -->
-                    @if($canAccess('hc.pretest', 'Pre-Test'))
-                    <li>
-                        <a href="{{ route('hc.pretest.index') }}" class="nav-link text-white">
-                            <i class="bi bi-file-earmark-text me-2"></i> Pre-Test
-                        </a>
-                    </li>
-                    @endif
-
-                    <!-- 3. Menu Post-Test -->
-                    @if($canAccess('hc.posttest', 'Post-Test'))
-                    <li>
-                        <a href="{{ route('hc.posttest.index') }}" class="nav-link text-white">
-                            <i class="bi bi-file-earmark-check me-2"></i> Post-Test
-                        </a>
-                    </li>
-                    @endif
-
-                    <hr class="my-2 border-secondary">
+                <!-- 2. Menu Pre-Test -->
+                @if($canAccess('hc.pretest', 'Pre-Test'))
+                <li>
+                    <a href="{{ route('hc.pretest.index') }}" class="nav-link text-white">
+                        <i class="bi bi-file-earmark-text me-2"></i> Pre-Test
+                    </a>
+                </li>
                 @endif
+
+                <!-- 3. Menu Post-Test -->
+                @if($canAccess('hc.posttest', 'Post-Test'))
+                <li>
+                    <a href="{{ route('hc.posttest.index') }}" class="nav-link text-white">
+                        <i class="bi bi-file-earmark-check me-2"></i> Post-Test
+                    </a>
+                </li>
+                @endif
+
+                <hr class="my-2 border-secondary">
+            @endif
 
 
             <!-- SECTION MENU MAINTENANCE -->
@@ -197,6 +191,22 @@
                 <hr class="my-2 border-secondary">
             @endif
 
+
+            <!-- SECTION MENU PANDUAN -->
+            @if($canAccess('panduan.index', 'Panduan', 'Lihat Panduan', 'Panduan Penggunaan'))
+                <li class="nav-item mt-2">
+                    <small class="text-secondary fw-bold text-uppercase px-2">PANDUAN</small>
+                </li>
+
+                <li>
+                    <a href="{{ route('panduan.index') }}" class="nav-link text-white">
+                        <i class="bi bi-book me-2"></i> Panduan Penggunaan
+                    </a>
+                </li>
+
+                <hr class="my-2 border-secondary">
+            @endif
+
         </ul>
         
         <!-- FOOTER USER PROFILE -->
@@ -236,8 +246,6 @@
 
     <!-- Container Content -->
     <div class="flex-grow-1 p-4">
-        
-
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
         @endif

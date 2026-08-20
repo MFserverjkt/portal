@@ -76,9 +76,18 @@
                         <!-- 3. Tanggal BAST -->
                         <td class="text-nowrap">{{ $ticket->bast?->created_at ? $ticket->bast->created_at->format('d/m/Y H:i') : '-' }}</td>
                         
-                        <!-- 4. Tanggal Done -->
+                        <!-- 4. Tanggal Done (Lengkap dengan Fallback Data Lama) -->
                         <td class="text-nowrap">
-                            {{ $ticket->completed_at ? \Carbon\Carbon::parse($ticket->completed_at)->format('d/m/Y H:i') : '-' }}
+                            @if ($ticket->completed_at)
+                                {{ \Carbon\Carbon::parse($ticket->completed_at)->format('d/m/Y H:i') }}
+                            @elseif (optional($ticket->bast)->completed_at)
+                                {{ \Carbon\Carbon::parse($ticket->bast->completed_at)->format('d/m/Y H:i') }}
+                            @elseif (in_array($ticket->status, ['Selesai', 'Selesai (DONE)', 'closed', 'resolved']))
+                                {{-- Fallback ke updated_at untuk data lama yang sudah selesai --}}
+                                {{ $ticket->updated_at ? $ticket->updated_at->format('d/m/Y H:i') : '-' }}
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
                         </td>
                         
                         <!-- 5. Pelapor -->

@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Ticket;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -74,6 +75,16 @@ class ReportCorrectiveExport implements FromQuery, WithHeadings, WithMapping, Sh
     // 2. MAPPING DATA KOLOM
     public function map($ticket): array
     {
+        // Logika / Fallback Tanggal Done
+        $tanggalDone = '-';
+        if ($ticket->completed_at) {
+            $tanggalDone = Carbon::parse($ticket->completed_at)->format('d/m/Y H:i');
+        } elseif ($ticket->bast?->completed_at) {
+            $tanggalDone = Carbon::parse($ticket->bast->completed_at)->format('d/m/Y H:i');
+        } elseif (in_array(strtolower($ticket->status), ['done', 'selesai', 'closed', 'resolved']) && $ticket->updated_at) {
+            $tanggalDone = $ticket->updated_at->format('d/m/Y H:i');
+        }
+
         return [
             $ticket->ticket_number,
             
@@ -84,7 +95,7 @@ class ReportCorrectiveExport implements FromQuery, WithHeadings, WithMapping, Sh
             $ticket->bast?->created_at ? $ticket->bast->created_at->format('d/m/Y H:i') : '-',
             
             // Tanggal Done
-            $ticket->completed_at ? \Carbon\Carbon::parse($ticket->completed_at)->format('d/m/Y H:i') : '-',
+            $tanggalDone,
             
             // Pelapor (Prioritas: reporter_name manual -> user->name)
             $ticket->reporter_name ?? $ticket->user?->name ?? '-',
