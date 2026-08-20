@@ -158,19 +158,21 @@ class AssetController extends Controller
 
     /**
      * Helper Function Private untuk Generate Kode Aset Otomatis
-     * Format: MF-{BRANCH}-{TANGGAL}-{NOMOR_URUT} (Contoh: MF-HOTNG-20260729-0001)
+     * Format Baru: MF-{BRANCH}-{YYYY-MM-DD}-{NOMOR_URUT} (Contoh: MF-HOTNG-2026-08-20-0001)
      */
     private function generateAssetCode($branchCode = 'HOTNG', $date = null)
     {
-        $dateStr = Carbon::parse($date ?? Carbon::now())->format('Ymd');
+        // Format tanggal menggunakan strip YYYY-MM-DD
+        $dateStr = Carbon::parse($date ?? Carbon::now())->format('Y-m-d');
         $prefix = "MF-{$branchCode}-{$dateStr}-";
 
-        // Cari aset terakhir dengan prefix yang sama
+        // Cari aset terakhir dengan prefix yang sama pada tanggal tersebut
         $lastAsset = Asset::where('asset_code', 'LIKE', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();
 
         if ($lastAsset) {
+            // Ambil 4 digit nomor urut di bagian paling akhir
             $lastNumber = (int) substr($lastAsset->asset_code, -4);
             $nextNumber = $lastNumber + 1;
         } else {
