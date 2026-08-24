@@ -44,18 +44,26 @@ class UserController extends Controller
     public function create()
     {
         $branches = $this->branches;
-        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC'];
+        
+        // Ambil daftar role dinamis dari DB, fallback jika tabel belum ada
+        $roles = Schema::hasTable('roles') 
+            ? DB::table('roles')->pluck('name')->toArray() 
+            : ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC', 'ASSET'];
 
         return view('users.create', compact('branches', 'roles'));
     }
 
     public function store(Request $request)
     {
+        $existingRoles = Schema::hasTable('roles') 
+            ? DB::table('roles')->pluck('name')->toArray() 
+            : ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC', 'ASSET'];
+
         $request->validate([
             'name'        => 'required|string|max:255',
             'username'    => 'required|string|unique:users,username',
             'password'    => 'required|string|min:6',
-            'role'        => 'required|in:ADMIN,IT,MAINTENANCE,OUTLET,HC',
+            'role'        => ['required', Rule::in($existingRoles)],
             'branch_code' => 'required|string',
         ]);
 
@@ -75,7 +83,10 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $branches = $this->branches;
-        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC'];
+        
+        $roles = Schema::hasTable('roles') 
+            ? DB::table('roles')->pluck('name')->toArray() 
+            : ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC', 'ASSET'];
 
         return view('users.edit', compact('user', 'branches', 'roles'));
     }
@@ -84,10 +95,14 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
+        $existingRoles = Schema::hasTable('roles') 
+            ? DB::table('roles')->pluck('name')->toArray() 
+            : ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC', 'ASSET'];
+
         $request->validate([
             'name'        => 'required|string|max:255',
             'username'    => ['required', 'string', Rule::unique('users', 'username')->ignore($user->id)],
-            'role'        => 'required|in:ADMIN,IT,MAINTENANCE,OUTLET,HC',
+            'role'        => ['required', Rule::in($existingRoles)],
             'branch_code' => 'required|string',
             'password'    => 'nullable|string|min:6',
         ]);
@@ -126,7 +141,11 @@ class UserController extends Controller
     public function roles(Request $request)
     {
         $users = User::all();
-        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC'];
+        
+        // Ambil list role secara dinamis dari tabel roles
+        $roles = Schema::hasTable('roles') 
+            ? DB::table('roles')->pluck('name')->toArray() 
+            : ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC', 'ASSET'];
         
         // Ambil seluruh permission
         $permissions = class_exists(Permission::class) 
@@ -226,5 +245,36 @@ class UserController extends Controller
 
             return redirect()->back()->with('error', 'Gagal memperbarui hak akses: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Menyimpan Role Baru dari Modal View
+     */
+    public function storeRole(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:50|unique:roles,name',
+        ]);
+
+        $roleName = strtoupper(trim($request->name));
+
+        // 1. Simpan ke tabel roles
+        DB::table('roles')->insert([
+            'name'       => $roleName,
+            'guard_name' => 'web',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // 2. Update definisi ENUM kolom role pada tabel users agar role baru valid di DB
+        if (Schema::hasColumn('users', 'role')) {
+            $existingRoles = DB::table('roles')->pluck('name')->toArray();
+            if (!empty($existingRoles)) {
+                $enumList = "'" . implode("','", $existingRoles) . "'";
+                DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM({$enumList}) NOT NULL DEFAULT 'OUTLET'");
+            }
+        }
+
+        return redirect()->back()->with('success', "Role {$roleName} berhasil ditambahkan!");
     }
 }

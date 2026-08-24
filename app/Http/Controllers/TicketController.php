@@ -115,13 +115,11 @@ class TicketController extends Controller
             $attachmentPath = $request->file('attachment')->store('tickets/attachments', 'public');
         }
 
-        // --- FIXED LOGIC BRANCH ---
-        // 1. Pakai input dari Form (dropdown) DULUAN, baru fallback ke Asset -> User -> Default
+        // --- LOGIC BRANCH ---
         $branchCode = $request->filled('branch_code') 
             ? $request->branch_code 
             : ($asset->branch_code ?? $user->branch_code ?? 'HOTNG');
 
-        // 2. Cari nama cabang dari database berdasarkan branch_code yang dipilih dari form
         $branchName = Asset::where('branch_code', $branchCode)->value('branch_name')
             ?? User::where('branch_code', $branchCode)->value('branch_name')
             ?? $asset->branch_name 
@@ -157,11 +155,12 @@ class TicketController extends Controller
      */
     public function updateWork(Request $request, $id)
     {
+        // Validasi: target_completion_date wajib diisi KECUALI jika work_status bernilai 'Completed'
         $request->validate([
             'technician_name'        => 'required|string|max:255',
             'action_taken'           => 'required|string',
-            'target_completion_date' => 'required|date',
             'work_status'            => 'required|in:On Check,Pengajuan Sparepart,Completed',
+            'target_completion_date' => 'required_unless:work_status,Completed|nullable|date',
         ]);
 
         $ticket = Ticket::findOrFail($id);
@@ -172,7 +171,7 @@ class TicketController extends Controller
         $ticket->update([
             'technician_name'        => $request->technician_name,
             'action_taken'           => $request->action_taken,
-            'target_completion_date' => $request->target_completion_date,
+            'target_completion_date' => $request->work_status === 'Completed' ? null : $request->target_completion_date,
             'work_status'            => $request->work_status,
             'status'                 => $newMainStatus,
         ]);

@@ -24,11 +24,12 @@
     <!-- Nav Tab / Pilihan Role -->
     <ul class="nav nav-tabs border-bottom-0" id="roleTab" role="tablist">
         @foreach($roles as $index => $role)
+            @php $roleSlug = Str::slug($role); @endphp
             <li class="nav-item" role="presentation">
                 <button class="nav-item nav-link fw-bold px-4 {{ $index === 0 ? 'active' : '' }}" 
-                        id="tab-{{ $role }}" 
+                        id="tab-{{ $roleSlug }}" 
                         data-bs-toggle="tab" 
-                        data-bs-target="#content-{{ $role }}" 
+                        data-bs-target="#content-{{ $roleSlug }}" 
                         type="button" 
                         role="tab">
                     <i class="bi bi-person-badge me-1"></i> Role {{ $role }}
@@ -39,18 +40,31 @@
 
     <div class="tab-content bg-white p-4 border rounded-bottom shadow-sm" id="roleTabContent">
         @foreach($roles as $index => $role)
-            <div class="tab-pane fade {{ $index === 0 ? 'show active' : '' }}" id="content-{{ $role }}" role="tabpanel">
+            @php $roleSlug = Str::slug($role); @endphp
+            <div class="tab-pane fade {{ $index === 0 ? 'show active' : '' }}" id="content-{{ $roleSlug }}" role="tabpanel">
                 
                 <form action="{{ route('users.roles.update') }}" method="POST">
                     @csrf
                     <!-- Hidden Field Role -->
                     <input type="hidden" name="role" value="{{ $role }}">
 
-                    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom flex-wrap gap-2">
                         <h5 class="text-primary fw-bold mb-0">Atur Hak Akses Menu untuk Role: <span class="badge bg-primary">{{ $role }}</span></h5>
-                        <button type="submit" class="btn btn-success fw-bold">
-                            <i class="bi bi-save me-1"></i> Simpan Hak Akses {{ $role }}
-                        </button>
+                        
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Toggle Check All Global -->
+                            <div class="form-check form-switch fs-6 mb-0">
+                                <input class="form-check-input select-all-global" 
+                                       type="checkbox" 
+                                       data-role-slug="{{ $roleSlug }}"
+                                       id="check_global_{{ $roleSlug }}">
+                                <label class="form-check-label fw-bold text-secondary" for="check_global_{{ $roleSlug }}">Pilih Semua Menu</label>
+                            </div>
+
+                            <button type="submit" class="btn btn-success fw-bold">
+                                <i class="bi bi-save me-1"></i> Simpan Hak Akses {{ $role }}
+                            </button>
+                        </div>
                     </div>
 
                     @if(isset($permissions) && $permissions->isNotEmpty())
@@ -58,7 +72,6 @@
                             @foreach($permissions as $category => $permissionList)
                                 @php
                                     $catSlug = Str::slug($category);
-                                    // Hitung apakah semua checkbox di kategori ini tercentang
                                     $allChecked = $permissionList->every(function($p) use ($rolePermissions, $role) {
                                         return in_array($p->id, $rolePermissions[$role] ?? []);
                                     });
@@ -72,9 +85,9 @@
                                             <div class="form-check form-switch mb-0 fs-6">
                                                 <input class="form-check-input select-all-category" 
                                                        type="checkbox" 
-                                                       data-role="{{ $role }}" 
+                                                       data-role-slug="{{ $roleSlug }}" 
                                                        data-category="{{ $catSlug }}"
-                                                       id="check_all_{{ $role }}_{{ $catSlug }}" 
+                                                       id="check_all_{{ $roleSlug }}_{{ $catSlug }}" 
                                                        title="Pilih Semua di Kategori Ini"
                                                        {{ $allChecked ? 'checked' : '' }}>
                                             </div>
@@ -85,15 +98,15 @@
                                                     $isChecked = in_array($perm->id, $rolePermissions[$role] ?? []);
                                                 @endphp
                                                 <div class="form-check mb-3">
-                                                    <input class="form-check-input perm-checkbox perm-{{ $role }}-{{ $catSlug }}" 
+                                                    <input class="form-check-input perm-checkbox perm-{{ $roleSlug }} perm-{{ $roleSlug }}-{{ $catSlug }}" 
                                                            type="checkbox" 
                                                            name="permissions[]" 
                                                            value="{{ $perm->id }}" 
-                                                           id="perm_{{ $role }}_{{ $perm->id }}"
-                                                           data-role="{{ $role }}"
+                                                           id="perm_{{ $roleSlug }}_{{ $perm->id }}"
+                                                           data-role-slug="{{ $roleSlug }}"
                                                            data-category="{{ $catSlug }}"
                                                            {{ $isChecked ? 'checked' : '' }}>
-                                                    <label class="form-check-label cursor-pointer" for="perm_{{ $role }}_{{ $perm->id }}">
+                                                    <label class="form-check-label cursor-pointer" for="perm_{{ $roleSlug }}_{{ $perm->id }}">
                                                         <strong>{{ $perm->name }}</strong>
                                                         @if(!empty($perm->description))
                                                             <br><small class="text-muted d-block mt-1">{{ $perm->description }}</small>
@@ -106,106 +119,73 @@
                                 </div>
                             @endforeach
                         </div>
-
-                        <div class="d-flex justify-content-end mt-3">
-                            <button type="submit" class="btn btn-success btn-lg px-4 fw-bold">
-                                <i class="bi bi-save me-1"></i> Simpan Hak Akses {{ $role }}
-                            </button>
-                        </div>
                     @else
-                        <!-- FALLBACK JIKA DYNAMIC PERMISSIONS DARI DB KOSONG -->
+                        <!-- FALLBACK JIKA DYNAMIC PERMISSIONS KOSONG -->
                         <div class="row">
-                            <!-- Group User -->
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-header bg-light fw-bold"><i class="bi bi-folder me-1 text-primary"></i> USER</div>
-                                    <div class="card-body">
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="users.index" id="p_u_idx_{{ $role }}"
-                                                {{ in_array('users.index', $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-bold" for="p_u_idx_{{ $role }}">User Management</label>
-                                            <small class="d-block text-muted">Mengakses halaman daftar user</small>
+                            @php
+                                $fallbackGroups = [
+                                    'USER' => [
+                                        ['val' => 'users.index', 'title' => 'User Management', 'desc' => 'Mengakses halaman daftar user'],
+                                        ['val' => 'users.roles', 'title' => 'User Role & Hak Akses', 'desc' => 'Mengatur role dan hak akses pengguna']
+                                    ],
+                                    'ASSET' => [
+                                        ['val' => 'assets.index', 'title' => 'Inventori Asset', 'desc' => 'Melihat dan mengelola inventori aset']
+                                    ],
+                                    'TIKET' => [
+                                        ['val' => 'tickets.index', 'title' => 'Lihat Daftar Tiket', 'desc' => 'Melihat daftar seluruh tiket perbaikan'],
+                                        ['val' => 'tickets.create', 'title' => 'Buat Tiket Baru', 'desc' => 'Membuat tiket pengajuan perbaikan baru'],
+                                        ['val' => 'tickets.bast.create', 'title' => 'Proses BAST Tiket', 'desc' => 'Memproses Berita Acara Serah Terima (BAST)']
+                                    ],
+                                    'REPORT' => [
+                                        ['val' => 'report.it', 'title' => 'Report Corrective IT', 'desc' => 'Melihat laporan perbaikan divisi IT'],
+                                        ['val' => 'report.maintenance', 'title' => 'Report Corrective Maintenance', 'desc' => 'Melihat laporan perbaikan divisi Maintenance']
+                                    ]
+                                ];
+                            @endphp
+
+                            @foreach($fallbackGroups as $groupName => $items)
+                                @php $groupSlug = Str::slug($groupName); @endphp
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border shadow-sm">
+                                        <div class="card-header bg-light d-flex justify-content-between align-items-center fw-bold">
+                                            <span><i class="bi bi-folder me-1 text-primary"></i> {{ $groupName }}</span>
+                                            <div class="form-check form-switch mb-0 fs-6">
+                                                <input class="form-check-input select-all-category" 
+                                                       type="checkbox" 
+                                                       data-role-slug="{{ $roleSlug }}" 
+                                                       data-category="{{ $groupSlug }}"
+                                                       id="check_all_{{ $roleSlug }}_{{ $groupSlug }}">
+                                            </div>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="users.roles" id="p_u_roles_{{ $role }}"
-                                                {{ in_array('users.roles', $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-bold" for="p_u_roles_{{ $role }}">User Role & Hak Akses</label>
-                                            <small class="d-block text-muted">Mengatur role dan hak akses pengguna</small>
+                                        <div class="card-body">
+                                            @foreach($items as $item)
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input perm-checkbox perm-{{ $roleSlug }} perm-{{ $roleSlug }}-{{ $groupSlug }}" 
+                                                           type="checkbox" 
+                                                           name="permissions[]" 
+                                                           value="{{ $item['val'] }}" 
+                                                           id="fb_{{ $roleSlug }}_{{ Str::slug($item['val']) }}"
+                                                           data-role-slug="{{ $roleSlug }}"
+                                                           data-category="{{ $groupSlug }}"
+                                                           {{ in_array($item['val'], $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
+                                                    <label class="form-check-label fw-bold cursor-pointer" for="fb_{{ $roleSlug }}_{{ Str::slug($item['val']) }}">
+                                                        {{ $item['title'] }}
+                                                    </label>
+                                                    <small class="d-block text-muted">{{ $item['desc'] }}</small>
+                                                </div>
+                                            @endforeach
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <!-- Group Asset -->
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-header bg-light fw-bold"><i class="bi bi-folder me-1 text-primary"></i> ASSET</div>
-                                    <div class="card-body">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="assets.index" id="p_a_idx_{{ $role }}"
-                                                {{ in_array('assets.index', $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-bold" for="p_a_idx_{{ $role }}">Inventori Asset</label>
-                                            <small class="d-block text-muted">Melihat dan mengelola inventori aset</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Group Tiket -->
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-header bg-light fw-bold"><i class="bi bi-folder me-1 text-primary"></i> TIKET</div>
-                                    <div class="card-body">
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="tickets.index" id="p_t_idx_{{ $role }}"
-                                                {{ in_array('tickets.index', $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-bold" for="p_t_idx_{{ $role }}">Lihat Daftar Tiket</label>
-                                            <small class="d-block text-muted">Melihat daftar seluruh tiket perbaikan</small>
-                                        </div>
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="tickets.create" id="p_t_crt_{{ $role }}"
-                                                {{ in_array('tickets.create', $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-bold" for="p_t_crt_{{ $role }}">Buat Tiket Baru</label>
-                                            <small class="d-block text-muted">Membuat tiket pengajuan perbaikan baru</small>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="tickets.bast.create" id="p_t_bst_{{ $role }}"
-                                                {{ in_array('tickets.bast.create', $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-bold" for="p_t_bst_{{ $role }}">Proses BAST Tiket</label>
-                                            <small class="d-block text-muted">Memproses Berita Acara Serah Terima (BAST)</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Group Report -->
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-header bg-light fw-bold"><i class="bi bi-folder me-1 text-primary"></i> REPORT</div>
-                                    <div class="card-body">
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="report.it" id="p_r_it_{{ $role }}"
-                                                {{ in_array('report.it', $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-bold" for="p_r_it_{{ $role }}">Report Corrective IT</label>
-                                            <small class="d-block text-muted">Melihat laporan perbaikan divisi IT</small>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="report.maintenance" id="p_r_maint_{{ $role }}"
-                                                {{ in_array('report.maintenance', $rolePermissions[$role] ?? []) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-bold" for="p_r_maint_{{ $role }}">Report Corrective Maintenance</label>
-                                            <small class="d-block text-muted">Melihat laporan perbaikan divisi Maintenance</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="d-flex justify-content-end mt-3">
-                            <button type="submit" class="btn btn-success btn-lg px-4 fw-bold">
-                                <i class="bi bi-save me-1"></i> Simpan Hak Akses {{ $role }}
-                            </button>
+                            @endforeach
                         </div>
                     @endif
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="submit" class="btn btn-success btn-lg px-4 fw-bold">
+                            <i class="bi bi-save me-1"></i> Simpan Hak Akses {{ $role }}
+                        </button>
+                    </div>
                 </form>
 
             </div>
@@ -216,36 +196,62 @@
 <!-- Script JS Interaktif -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Fitur Checkbox "Select All / Switch Category"
-        const selectAllSwitches = document.querySelectorAll('.select-all-category');
-
-        selectAllSwitches.forEach(switchEl => {
+        // 1. Fitur Checkbox "Select All per Kategori"
+        document.querySelectorAll('.select-all-category').forEach(switchEl => {
             switchEl.addEventListener('change', function () {
-                const role = this.getAttribute('data-role');
+                const roleSlug = this.getAttribute('data-role-slug');
                 const category = this.getAttribute('data-category');
-                const checkboxes = document.querySelectorAll(`.perm-${role}-${category}`);
+                const checkboxes = document.querySelectorAll(`.perm-${roleSlug}-${category}`);
 
                 checkboxes.forEach(cb => {
                     cb.checked = this.checked;
                 });
+                
+                updateGlobalSwitch(roleSlug);
             });
         });
 
-        // Auto Uncheck / Check Switch Header berdasarkan status item anak
-        const itemCheckboxes = document.querySelectorAll('.perm-checkbox');
-        itemCheckboxes.forEach(cb => {
-            cb.addEventListener('change', function() {
-                const role = this.getAttribute('data-role');
-                const category = this.getAttribute('data-category');
-                const parentSwitch = document.getElementById(`check_all_${role}_${category}`);
+        // 2. Fitur Checkbox "Select All Global" (Pilih Semua Menu)
+        document.querySelectorAll('.select-all-global').forEach(globalSwitch => {
+            globalSwitch.addEventListener('change', function () {
+                const roleSlug = this.getAttribute('data-role-slug');
+                const targetPane = document.getElementById(`content-${roleSlug}`);
                 
-                if (parentSwitch) {
-                    const allInGroup = document.querySelectorAll(`.perm-${role}-${category}`);
-                    const allChecked = Array.from(allInGroup).every(c => c.checked);
-                    parentSwitch.checked = allChecked;
+                if (targetPane) {
+                    const allCheckboxes = targetPane.querySelectorAll('.perm-checkbox, .select-all-category');
+                    allCheckboxes.forEach(cb => {
+                        cb.checked = this.checked;
+                    });
                 }
             });
         });
+
+        // 3. Auto Check/Uncheck Parent Switches saat Checkbox Item Berubah
+        document.querySelectorAll('.perm-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const roleSlug = this.getAttribute('data-role-slug');
+                const category = this.getAttribute('data-category');
+                
+                // Update switch kategori
+                const categorySwitch = document.getElementById(`check_all_${roleSlug}_${category}`);
+                if (categorySwitch) {
+                    const categoryItems = document.querySelectorAll(`.perm-${roleSlug}-${category}`);
+                    categorySwitch.checked = Array.from(categoryItems).every(c => c.checked);
+                }
+
+                // Update switch global
+                updateGlobalSwitch(roleSlug);
+            });
+        });
+
+        // Helper untuk sinkronisasi Switch Global
+        function updateGlobalSwitch(roleSlug) {
+            const globalSwitch = document.getElementById(`check_global_${roleSlug}`);
+            if (globalSwitch) {
+                const allItems = document.querySelectorAll(`.perm-${roleSlug}`);
+                globalSwitch.checked = allItems.length > 0 && Array.from(allItems).every(c => c.checked);
+            }
+        }
     });
 </script>
 @endsection

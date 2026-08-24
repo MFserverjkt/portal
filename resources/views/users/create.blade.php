@@ -27,6 +27,7 @@
                     <option value="ADMIN">ADMIN</option>
                     <option value="IT">IT</option>
                     <option value="MAINTENANCE">MAINTENANCE</option>
+                    <option value="MAINTENANCE">ASSET</option>
                     <option value="OUTLET">OUTLET</option>
                 </select>
             </div>

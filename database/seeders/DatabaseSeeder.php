@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
             BranchSeeder::class,
         ]);
 
-        // 2. Daftar User Default System & Outlet
+        // 2. Daftar User Default System, Support & Outlet
         $users = [
             // Internal & Support
             [
@@ -40,6 +40,15 @@ class DatabaseSeeder extends Seeder
                 'name'        => 'Team Maintenance',
                 'password'    => 'maint123',
                 'role'        => 'MAINTENANCE',
+                'branch_code' => 'HOTNG',
+                'branch_name' => 'HEAD OFFICE TANGERANG',
+            ],
+            // User Default untuk Role ASSET
+            [
+                'username'    => 'asset',
+                'name'        => 'Team Asset',
+                'password'    => 'asset123',
+                'role'        => 'ASSET',
                 'branch_code' => 'HOTNG',
                 'branch_name' => 'HEAD OFFICE TANGERANG',
             ],
@@ -203,7 +212,7 @@ class DatabaseSeeder extends Seeder
 
         // 3. Eksekusi Seeder User
         foreach ($users as $userData) {
-            User::updateOrCreate(
+            $user = User::updateOrCreate(
                 ['username' => $userData['username']],
                 [
                     'name'        => $userData['name'],
@@ -213,6 +222,12 @@ class DatabaseSeeder extends Seeder
                     'branch_name' => $userData['branch_name'],
                 ]
             );
+
+            // Pasangkan Spatie Role (jika Spatie Permission digunakan)
+            if (class_exists(\Spatie\Permission\Models\Role::class)) {
+                $role = \Spatie\Permission\Models\Role::firstOrCreate(['name' => $userData['role']]);
+                $user->assignRole($role);
+            }
         }
     }
 }

@@ -141,15 +141,15 @@
                                                         </div>
 
                                                         <!-- Input Tanggal Target Selesai -->
-                                                        <div class="mb-3">
+                                                        <div class="mb-3" id="target-wrapper-{{ $ticket->id }}">
                                                             <label class="form-label fw-bold text-dark">Tanggal Target Selesai <span class="text-danger">*</span></label>
-                                                            <input type="date" name="target_completion_date" class="form-control" value="{{ $ticket->target_completion_date }}" required>
+                                                            <input type="date" name="target_completion_date" id="target-date-{{ $ticket->id }}" class="form-control" value="{{ $ticket->target_completion_date }}">
                                                         </div>
 
                                                         <!-- Select Status Pengerjaan -->
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold text-dark">Status Pengerjaan <span class="text-danger">*</span></label>
-                                                            <select name="work_status" class="form-select" required>
+                                                            <select name="work_status" class="form-select status-pengerjaan-select" data-ticket-id="{{ $ticket->id }}" required>
                                                                 <option value="On Check" {{ ($ticket->work_status ?? '') === 'On Check' ? 'selected' : '' }}>On Check</option>
                                                                 <option value="Pengajuan Sparepart" {{ ($ticket->work_status ?? '') === 'Pengajuan Sparepart' ? 'selected' : '' }}>Pengajuan Sparepart</option>
                                                                 <option value="Completed" {{ ($ticket->work_status ?? '') === 'Completed' ? 'selected' : '' }}>Completed</option>
@@ -168,14 +168,14 @@
                                     </div>
                                 @endif
 
-                                <!-- Tombol BAST (Muncul HANYA JIKA status pengerjaan sudah di-update / Completed & BAST belum ada) -->
+                                <!-- Tombol BAST -->
                                 @if(!$ticket->bast && in_array(auth()->user()->role, ['ADMIN', 'IT', 'MAINTENANCE']) && in_array($ticket->work_status, ['Completed', 'On Check', 'Pengajuan Sparepart']) && !in_array($ticket->status, ['Selesai', 'Selesai (DONE)']))
                                     <a href="{{ route('tickets.bast.create', $ticket->id) }}" class="btn btn-primary btn-sm" title="Buat BAST">
                                         <i class="bi bi-file-earmark-text"></i> BAST
                                     </a>
                                 @endif
 
-                                <!-- Tombol DONE (Membuka Modal Input Tanggal Selesai) -->
+                                <!-- Tombol DONE -->
                                 @if($ticket->status === 'Menunggu Konfirmasi' && ($ticket->user_id === auth()->id() || auth()->user()->role === 'ADMIN') && !in_array(auth()->user()->role, ['IT', 'MAINTENANCE']))
                                     <button type="button" class="btn btn-success btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalDone{{ $ticket->id }}" title="Konfirmasi Selesai">
                                         <i class="bi bi-check-circle me-1"></i> VALIDASI BAST
@@ -240,3 +240,36 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const statusSelects = document.querySelectorAll('.status-pengerjaan-select');
+
+    function toggleTargetDate(selectElement) {
+        const ticketId = selectElement.getAttribute('data-ticket-id');
+        const wrapper = document.getElementById(`target-wrapper-${ticketId}`);
+        const input = document.getElementById(`target-date-${ticketId}`);
+
+        if (selectElement.value === 'Completed') {
+            wrapper.style.display = 'none';
+            input.removeAttribute('required');
+            input.value = ''; // Mengosongkan tanggal target
+        } else {
+            wrapper.style.display = 'block';
+            input.setAttribute('required', 'required');
+        }
+    }
+
+    statusSelects.forEach(function (selectElement) {
+        // Run on initial load
+        toggleTargetDate(selectElement);
+
+        // Run on select change
+        selectElement.addEventListener('change', function () {
+            toggleTargetDate(this);
+        });
+    });
+});
+</script>
+@endpush

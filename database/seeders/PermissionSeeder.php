@@ -67,6 +67,7 @@ class PermissionSeeder extends Seeder
             ],
         ];
 
+        // 1. Insert / Update Permissions
         foreach ($permissions as $perm) {
             DB::table('permissions')->updateOrInsert(
                 ['slug' => $perm['slug']],
@@ -78,6 +79,38 @@ class PermissionSeeder extends Seeder
                     'created_at'  => now(),
                 ]
             );
+        }
+
+        // 2. Pastikan Role ASSET Terdaftar di Tabel Roles (jika ada tabel roles)
+        if (\Schema::hasTable('roles')) {
+            $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC', 'ASSET'];
+            
+            foreach ($roles as $roleName) {
+                DB::table('roles')->updateOrInsert(
+                    ['name' => $roleName],
+                    [
+                        'guard_name' => 'web',
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+            }
+
+            // 3. Optional: Assign Hak Akses Default untuk Role ASSET (Inventori Asset & Lihat Tiket)
+            $assetRoleId = DB::table('roles')->where('name', 'ASSET')->value('id');
+            if ($assetRoleId && \Schema::hasTable('role_has_permissions')) {
+                $defaultAssetPermSlugs = ['assets.index', 'tickets.index'];
+                $permIds = DB::table('permissions')->whereIn('slug', $defaultAssetPermSlugs)->pluck('id');
+
+                foreach ($permIds as $permId) {
+                    DB::table('role_has_permissions')->updateOrInsert(
+                        [
+                            'permission_id' => $permId,
+                            'role_id'       => $assetRoleId
+                        ]
+                    );
+                }
+            }
         }
     }
 }
