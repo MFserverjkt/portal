@@ -37,9 +37,19 @@
                 <!-- Baris 1: Asset ID, Asset Name, Rumpun Category -->
                 <div class="row g-3 mb-3">
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold text-dark">Asset ID (Kode Unik)</label>
-                        <input type="text" class="form-control bg-light" value="Otomatis oleh Sistem" disabled readonly>
-                        <small class="text-muted d-block mt-1" style="font-size: 11px;">*Kode akan ter-generate otomatis saat disimpan.</small>
+                        <label class="form-label fw-semibold text-dark">Asset ID (Kode Unik) <span class="text-danger">*</span></label>
+                        <input 
+                            type="text" 
+                            name="asset_code" 
+                            class="form-control @error('asset_code') is-invalid @enderror" 
+                            placeholder="Contoh: AST-001 / LAP-2024-01" 
+                            value="{{ old('asset_code') }}" 
+                            required
+                        >
+                        <small class="text-muted d-block mt-1" style="font-size: 11px;">*Masukkan kode unik aset secara manual.</small>
+                        @error('asset_code')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <div class="col-md-4">
@@ -75,10 +85,7 @@
                             <option value="" disabled {{ old('branch_code') ? '' : 'selected' }}>-- Pilih Cabang Penempatan --</option>
                             
                             @php
-                                // Pengecekan ketat: Jika $branches tidak ada atau nilainya kosong ([] / null / empty Collection)
                                 $hasBranches = isset($branches) && (is_countable($branches) ? count($branches) > 0 : !empty($branches));
-                                
-                                // Ambil langsung dari tabel 'branches' jika $branches dari Controller kosong
                                 $listBranches = $hasBranches ? $branches : \DB::table('branches')->orderBy('name', 'asc')->get();
                             @endphp
 

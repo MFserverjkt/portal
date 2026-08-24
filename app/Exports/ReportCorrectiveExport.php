@@ -59,7 +59,7 @@ class ReportCorrectiveExport implements FromQuery, WithHeadings, WithMapping, Sh
             'No. Tiket',
             'Tanggal Tiket',
             'Tanggal BAST',
-            'Tanggal Done',
+            'Tanggal VALIDASI BAST',
             'Pelapor',
             'Branch',
             'Nomor Asset',

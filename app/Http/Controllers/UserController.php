@@ -44,7 +44,7 @@ class UserController extends Controller
     public function create()
     {
         $branches = $this->branches;
-        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET'];
+        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC'];
 
         return view('users.create', compact('branches', 'roles'));
     }
@@ -55,7 +55,7 @@ class UserController extends Controller
             'name'        => 'required|string|max:255',
             'username'    => 'required|string|unique:users,username',
             'password'    => 'required|string|min:6',
-            'role'        => 'required|in:ADMIN,IT,MAINTENANCE,OUTLET',
+            'role'        => 'required|in:ADMIN,IT,MAINTENANCE,OUTLET,HC',
             'branch_code' => 'required|string',
         ]);
 
@@ -75,7 +75,7 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $branches = $this->branches;
-        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET'];
+        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC'];
 
         return view('users.edit', compact('user', 'branches', 'roles'));
     }
@@ -87,7 +87,7 @@ class UserController extends Controller
         $request->validate([
             'name'        => 'required|string|max:255',
             'username'    => ['required', 'string', Rule::unique('users', 'username')->ignore($user->id)],
-            'role'        => 'required|in:ADMIN,IT,MAINTENANCE,OUTLET',
+            'role'        => 'required|in:ADMIN,IT,MAINTENANCE,OUTLET,HC',
             'branch_code' => 'required|string',
             'password'    => 'nullable|string|min:6',
         ]);
@@ -113,7 +113,6 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        // Mencegah user menghapus akun sendiri yang sedang dipakai login
         if ($user->id === auth()->id()) {
             return redirect()->route('users.index')->with('error', 'Anda tidak dapat menghapus akun sendiri.');
         }
@@ -127,23 +126,24 @@ class UserController extends Controller
     public function roles(Request $request)
     {
         $users = User::all();
-        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET'];
+        $roles = ['ADMIN', 'IT', 'MAINTENANCE', 'OUTLET', 'HC'];
         
-        // Ambil seluruh permission dan kelompokkan berdasarkan kategori
+        // Ambil seluruh permission
         $permissions = class_exists(Permission::class) 
             ? Permission::all()->groupBy('category') 
             : collect();
         
-        // Ambil permission_id yang dimiliki oleh masing-masing role
+        // Ambil permission_id per nama role dengan mapping role_id -> roles.name
         $rolePermissions = [];
-        if (Schema::hasTable('role_has_permissions')) {
-            $rolePermissions = DB::table('role_has_permissions')
-                ->get()
-                ->groupBy('role')
-                ->map(function ($items) {
-                    return $items->pluck('permission_id')->toArray();
-                })
-                ->toArray();
+        if (Schema::hasTable('role_has_permissions') && Schema::hasTable('roles')) {
+            $records = DB::table('role_has_permissions')
+                ->join('roles', 'role_has_permissions.role_id', '=', 'roles.id')
+                ->select('roles.name as role_name', 'role_has_permissions.permission_id')
+                ->get();
+
+            foreach ($records as $row) {
+                $rolePermissions[$row->role_name][] = $row->permission_id;
+            }
         }
 
         return view('users.roles', compact('users', 'roles', 'permissions', 'rolePermissions'));
@@ -157,30 +157,45 @@ class UserController extends Controller
             'permissions' => 'nullable|array',
         ]);
 
-        $role = $request->input('role');
+        $roleName = $request->input('role');
         $permissions = $request->input('permissions', []);
 
         try {
             DB::beginTransaction();
 
-            // 1. Hapus semua permission lama untuk role terkait
-            DB::table('role_has_permissions')->where('role', $role)->delete();
+            // 1. Ambil atau buat record role di tabel 'roles' untuk mendapatkan role_id
+            $roleRecord = DB::table('roles')->where('name', $roleName)->first();
 
-            // 2. Jika ada permission yang dicentang, proses dan simpan
+            if (!$roleRecord) {
+                $roleId = DB::table('roles')->insertGetId([
+                    'name'       => $roleName,
+                    'guard_name' => 'web',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $roleId = $roleRecord->id;
+            }
+
+            // 2. Hapus semua permission lama menggunakan 'role_id'
+            DB::table('role_has_permissions')->where('role_id', $roleId)->delete();
+
+            // 3. Simpan permission baru jika ada yang dicentang
             if (!empty($permissions)) {
                 $dataToInsert = [];
 
                 foreach ($permissions as $perm) {
                     $permissionId = null;
 
-                    // Jika input berupa angka ID (misal: 1, 2, 3)
                     if (is_numeric($perm)) {
                         $permissionId = (int) $perm;
                     } else {
-                        // Jika input berupa nama string (misal: 'users.index'), cari atau buat ID-nya
-                        $permissionId = DB::table('permissions')->where('name', $perm)->value('id');
-
-                        if (!$permissionId) {
+                        // Cari atau buat permission baru jika belum ada
+                        $permissionRecord = DB::table('permissions')->where('name', $perm)->first();
+                        
+                        if ($permissionRecord) {
+                            $permissionId = $permissionRecord->id;
+                        } else {
                             $permissionId = DB::table('permissions')->insertGetId([
                                 'name'       => $perm,
                                 'guard_name' => 'web',
@@ -192,8 +207,8 @@ class UserController extends Controller
 
                     if ($permissionId) {
                         $dataToInsert[] = [
-                            'role'          => $role,
                             'permission_id' => $permissionId,
+                            'role_id'       => $roleId,
                         ];
                     }
                 }
@@ -205,7 +220,7 @@ class UserController extends Controller
 
             DB::commit();
 
-            return redirect()->back()->with('success', "Hak akses menu untuk role {$role} berhasil diperbarui!");
+            return redirect()->back()->with('success', "Hak akses menu untuk role {$roleName} berhasil diperbarui!");
         } catch (\Exception $e) {
             DB::rollBack();
 

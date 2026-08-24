@@ -52,7 +52,7 @@
                         <th>No. Tiket</th>
                         <th>Tanggal Tiket</th>
                         <th>Tanggal BAST</th>
-                        <th>Tanggal Done</th>
+                        <th>Tanggal VALIDASI BAST</th>
                         <th>Pelapor</th>
                         <th>Branch</th>
                         <th>Nomor Asset</th>

@@ -48,7 +48,7 @@
                         <th>Nama Aset</th>
                         <th>Keluhan</th>
                         <th>Status</th>
-                        <th>Aksi</th>
+                        <th width="220">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -85,28 +85,91 @@
                         <td>{{ $ticket->title }}</td>
                         <td>
                             @php
+                                // Menentukan status visual dan badge
+                                $workStatus = $ticket->work_status ?? $ticket->status;
                                 $statusBadge = 'secondary';
-                                if ($ticket->status === 'Terbuka') {
-                                    $statusBadge = 'danger';
-                                } elseif ($ticket->status === 'Menunggu Konfirmasi') {
+
+                                if (in_array($workStatus, ['Terbuka', 'On Check', 'Pengajuan Sparepart', 'On Progress', 'Diproses'])) {
                                     $statusBadge = 'warning text-dark';
-                                } elseif (in_array($ticket->status, ['Selesai', 'Selesai (DONE)'])) {
+                                } elseif ($workStatus === 'Menunggu Konfirmasi') {
+                                    $statusBadge = 'info text-dark';
+                                } elseif (in_array($workStatus, ['Completed', 'Selesai', 'Selesai (DONE)'])) {
                                     $statusBadge = 'success';
                                 }
                             @endphp
                             <span class="badge bg-{{ $statusBadge }}">
-                                {{ $ticket->status }}
+                                {{ in_array($workStatus, ['On Check', 'Pengajuan Sparepart']) ? 'On Progress (' . $workStatus . ')' : $workStatus }}
                             </span>
                         </td>
                         <td>
-                            <div class="d-flex gap-1">
+                            <div class="d-flex gap-1 flex-wrap">
                                 <!-- Tombol View Detail -->
                                 <a href="{{ route('tickets.show', $ticket->id) }}" class="btn btn-info btn-sm text-white" title="Lihat Detail">
                                     <i class="bi bi-eye"></i> View
                                 </a>
 
-                                <!-- Tombol BAST (Muncul jika BAST belum ada & tiket belum selesai) -->
-                                @if(!$ticket->bast && in_array(auth()->user()->role, ['ADMIN', 'IT', 'MAINTENANCE']) && !in_array($ticket->status, ['Selesai', 'Selesai (DONE)']))
+                                <!-- Tombol WORK (Untuk teknisi IT / Maintenance / Admin) -->
+                                @if(in_array(auth()->user()->role, ['ADMIN', 'IT', 'MAINTENANCE']) && !in_array($ticket->status, ['Selesai', 'Selesai (DONE)']))
+                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalWork{{ $ticket->id }}" title="Update Pengerjaan Tiket">
+                                        <i class="bi bi-tools"></i> WORK
+                                    </button>
+
+                                    <!-- MODAL POPUP WORK -->
+                                    <div class="modal fade" id="modalWork{{ $ticket->id }}" tabindex="-1" aria-labelledby="modalWorkLabel{{ $ticket->id }}" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content text-start">
+                                                <form action="{{ route('tickets.work.update', $ticket->id) }}" method="POST">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <div class="modal-header bg-dark text-white">
+                                                        <h5 class="modal-title fs-6 fw-bold" id="modalWorkLabel{{ $ticket->id }}">
+                                                            <i class="bi bi-tools me-2"></i>Form Work Progress - {{ $ticket->ticket_number }}
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <!-- Input Petugas -->
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold text-dark">Petugas / Teknisi <span class="text-danger">*</span></label>
+                                                            <input type="text" name="technician_name" class="form-control" value="{{ $ticket->technician_name ?? auth()->user()->name }}" required placeholder="Nama teknisi penanggung jawab">
+                                                        </div>
+
+                                                        <!-- Input Tindakan Pengerjaan -->
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold text-dark">Tindakan Pengerjaan <span class="text-danger">*</span></label>
+                                                            <textarea name="action_taken" class="form-control" rows="3" required placeholder="Jelaskan analisa / tindakan perbaikan yang dilakukan">{{ $ticket->action_taken }}</textarea>
+                                                        </div>
+
+                                                        <!-- Input Tanggal Target Selesai -->
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold text-dark">Tanggal Target Selesai <span class="text-danger">*</span></label>
+                                                            <input type="date" name="target_completion_date" class="form-control" value="{{ $ticket->target_completion_date }}" required>
+                                                        </div>
+
+                                                        <!-- Select Status Pengerjaan -->
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold text-dark">Status Pengerjaan <span class="text-danger">*</span></label>
+                                                            <select name="work_status" class="form-select" required>
+                                                                <option value="On Check" {{ ($ticket->work_status ?? '') === 'On Check' ? 'selected' : '' }}>On Check</option>
+                                                                <option value="Pengajuan Sparepart" {{ ($ticket->work_status ?? '') === 'Pengajuan Sparepart' ? 'selected' : '' }}>Pengajuan Sparepart</option>
+                                                                <option value="Completed" {{ ($ticket->work_status ?? '') === 'Completed' ? 'selected' : '' }}>Completed</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                                                        <button type="submit" class="btn btn-primary btn-sm fw-bold">
+                                                            <i class="bi bi-save me-1"></i> Simpan Work
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                <!-- Tombol BAST (Muncul HANYA JIKA status pengerjaan sudah di-update / Completed & BAST belum ada) -->
+                                @if(!$ticket->bast && in_array(auth()->user()->role, ['ADMIN', 'IT', 'MAINTENANCE']) && in_array($ticket->work_status, ['Completed', 'On Check', 'Pengajuan Sparepart']) && !in_array($ticket->status, ['Selesai', 'Selesai (DONE)']))
                                     <a href="{{ route('tickets.bast.create', $ticket->id) }}" class="btn btn-primary btn-sm" title="Buat BAST">
                                         <i class="bi bi-file-earmark-text"></i> BAST
                                     </a>
@@ -115,7 +178,7 @@
                                 <!-- Tombol DONE (Membuka Modal Input Tanggal Selesai) -->
                                 @if($ticket->status === 'Menunggu Konfirmasi' && ($ticket->user_id === auth()->id() || auth()->user()->role === 'ADMIN') && !in_array(auth()->user()->role, ['IT', 'MAINTENANCE']))
                                     <button type="button" class="btn btn-success btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalDone{{ $ticket->id }}" title="Konfirmasi Selesai">
-                                        <i class="bi bi-check-circle me-1"></i> DONE
+                                        <i class="bi bi-check-circle me-1"></i> VALIDASI BAST
                                     </button>
 
                                     <!-- MODAL POPUP INPUT TANGGAL SELESAI -->

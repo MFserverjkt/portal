@@ -17,43 +17,46 @@
 @php
     $user = auth()->user();
 
-    // 1. Ambil Nama User & Role (Kapital & Clean)
+    // 1. Ambil Nama User
     $userName = $user?->name ?? $user?->username ?? 'User';
-    $primaryRole = $user?->getRoleNames()->first() ?? $user?->role ?? 'GUEST';
-    $userRole = strtoupper(trim($primaryRole));
 
-    // 2. Ambil PERMISSION resmi milik User dari Spatie Permission
-    $userPermissions = [];
+    // 2. Deteksi Role dengan fleksibel (Spatie Role DB / Column Role)
+    $detectedRole = 'GUEST';
     if ($user) {
-        $userPermissions = $user->getAllPermissions()
-            ->pluck('name')
-            ->map(fn($item) => strtolower(trim($item)))
-            ->toArray();
+        if (method_exists($user, 'getRoleNames') && $user->getRoleNames()->count() > 0) {
+            $detectedRole = $user->getRoleNames()->first();
+        } else {
+            $detectedRole = $user->role ?? 'GUEST';
+        }
     }
+    $userRole = strtoupper(trim($detectedRole));
 
-    // 3. Helper Closure Pengecekan Akses Menu Presisi
-    $canAccess = function(...$permNames) use ($user, $userRole, $userPermissions) {
+    // 3. Helper Closure Pengecekan Akses Role
+    $hasRole = function(...$roles) use ($user, $userRole) {
         if (!$user) return false;
 
-        // Hanya Role ADMIN / ADMINISTRATOR yang otomatis dapat Full Access
+        // Admin & Administrator selalu Full Access
         if (in_array($userRole, ['ADMIN', 'ADMINISTRATOR'])) {
             return true;
         }
 
-        // Jika tidak ada permission sama sekali untuk user ini
-        if (empty($userPermissions)) {
-            return false;
-        }
-
-        // Cek apakah parameter yang dicari ada di daftar permission user
-        foreach ($permNames as $perm) {
-            if (in_array(strtolower(trim($perm)), $userPermissions)) {
+        // Pengecekan via Spatie method
+        if (method_exists($user, 'hasAnyRole')) {
+            if ($user->hasAnyRole($roles) || $user->hasAnyRole(array_map('strtolower', $roles))) {
                 return true;
             }
         }
 
-        return false;
+        // Pengecekan via string $userRole
+        $upperRoles = array_map('strtoupper', $roles);
+        return in_array($userRole, $upperRoles);
     };
+
+    // Hak Akses Spesifik Per-Role:
+    $isIT          = $hasRole('IT');
+    $isMaintenance = $hasRole('MAINTENANCE');
+    $isHC          = $hasRole('HC');
+    $isOutlet      = $hasRole('OUTLET');
 
     // Ambil info Cabang
     $branchInfo = $user?->branch_name 
@@ -68,6 +71,7 @@
         'IT'                    => 'bg-primary text-white',
         'MAINTENANCE'           => 'bg-warning text-dark',
         'OUTLET'                => 'bg-info text-white',
+        'HC'                    => 'bg-success text-white',
         default                 => 'bg-secondary text-white'
     };
 @endphp
@@ -80,84 +84,68 @@
         
         <ul class="nav nav-pills flex-column mb-auto">
 
-            <!-- SECTION MENU IT -->
-            @if($canAccess('users.index', 'users.roles', 'report.it', 'User Management', 'User Role & Hak Akses', 'Report Corrective IT'))
+            <!-- SECTION MENU IT (Khusus Admin & IT) -->
+            @if($isIT)
                 <li class="nav-item mt-2">
                     <small class="text-secondary fw-bold text-uppercase px-2">IT</small>
                 </li>
                 
-                @if($canAccess('users.index', 'User Management'))
                 <li>
-                    <a href="{{ route('users.index') }}" class="nav-link text-white">
+                    <a href="{{ route('users.index') }}" class="nav-link text-white {{ request()->routeIs('users.index*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-people me-2"></i> User Management
                     </a>
                 </li>
-                @endif
 
-                @if($canAccess('users.roles', 'User Role & Hak Akses'))
                 <li>
-                    <a href="{{ route('users.roles') }}" class="nav-link text-white">
+                    <a href="{{ route('users.roles') }}" class="nav-link text-white {{ request()->routeIs('users.roles*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-shield-lock me-2"></i> User Role
                     </a>
                 </li>
-                @endif
 
-                @if($canAccess('report.it', 'Report Corrective IT'))
                 <li>
-                    <a href="{{ route('report.it') }}" class="nav-link text-white">
+                    <a href="{{ route('report.it') }}" class="nav-link text-white {{ request()->routeIs('report.it*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-file-earmark-text me-2"></i> Report Corrective
                     </a>
                 </li>
-                @endif
 
                 <hr class="my-2 border-secondary">
             @endif
 
-            <!-- SECTION MENU HC LEARNING -->
-            @if($canAccess('hc.elearning', 'hc.pretest', 'hc.posttest', 'e-Learning', 'Pre-Test', 'Post-Test', 'HC Learning'))
+            <!-- SECTION MENU HC LEARNING (Admin, IT, HC, Outlet) -->
+            @if($isIT || $isHC || $isOutlet)
                 <li class="nav-item mt-2">
                     <small class="text-secondary fw-bold text-uppercase px-2">HC LEARNING</small>
                 </li>
 
-                <!-- 1. Menu e-Learning (Materi & Modul) -->
-                @if($canAccess('hc.elearning', 'e-Learning', 'Materi Learning'))
                 <li>
-                    <a href="{{ route('hc.elearning.index') }}" class="nav-link text-white">
+                    <a href="{{ route('hc.elearning.index') }}" class="nav-link text-white {{ request()->routeIs('hc.elearning*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-mortarboard me-2"></i> e-Learning
                     </a>
                 </li>
-                @endif
 
-                <!-- 2. Menu Pre-Test -->
-                @if($canAccess('hc.pretest', 'Pre-Test'))
                 <li>
-                    <a href="{{ route('hc.pretest.index') }}" class="nav-link text-white">
+                    <a href="{{ route('hc.pretest.index') }}" class="nav-link text-white {{ request()->routeIs('hc.pretest*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-file-earmark-text me-2"></i> Pre-Test
                     </a>
                 </li>
-                @endif
 
-                <!-- 3. Menu Post-Test -->
-                @if($canAccess('hc.posttest', 'Post-Test'))
                 <li>
-                    <a href="{{ route('hc.posttest.index') }}" class="nav-link text-white">
+                    <a href="{{ route('hc.posttest.index') }}" class="nav-link text-white {{ request()->routeIs('hc.posttest*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-file-earmark-check me-2"></i> Post-Test
                     </a>
                 </li>
-                @endif
 
                 <hr class="my-2 border-secondary">
             @endif
 
-
-            <!-- SECTION MENU MAINTENANCE -->
-            @if($canAccess('report.maintenance', 'Report Corrective Maintenance'))
+            <!-- SECTION MENU MAINTENANCE (Admin & Maintenance) -->
+            @if($isMaintenance)
                 <li class="nav-item mt-2">
                     <small class="text-secondary fw-bold text-uppercase px-2">MAINTENANCE</small>
                 </li>
 
                 <li>
-                    <a href="{{ route('report.maintenance') }}" class="nav-link text-white">
+                    <a href="{{ route('report.maintenance') }}" class="nav-link text-white {{ request()->routeIs('report.maintenance*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-file-earmark-text me-2"></i> Report Corrective
                     </a>
                 </li>
@@ -165,47 +153,43 @@
                 <hr class="my-2 border-secondary">
             @endif
 
-
-            <!-- SECTION MENU ASSET / TIKET -->
-            @if($canAccess('assets.index', 'tickets.index', 'tickets.create', 'Inventori Asset', 'Lihat Daftar Tiket', 'Buat Tiket Baru'))
+            <!-- SECTION MENU ASSET & SUPPORT -->
+            @if($isIT || $isMaintenance || $isOutlet)
                 <li class="nav-item mt-2">
-                    <small class="text-secondary fw-bold text-uppercase px-2">ASSET</small>
+                    <small class="text-secondary fw-bold text-uppercase px-2">ASSET & SUPPORT</small>
                 </li>
 
-                @if($canAccess('assets.index', 'Inventori Asset'))
+                {{-- Inventori Asset hanya untuk IT & Maintenance --}}
+                @if($isIT || $isMaintenance)
                 <li>
-                    <a href="{{ route('assets.index') }}" class="nav-link text-white">
+                    <a href="{{ route('assets.index') }}" class="nav-link text-white {{ request()->routeIs('assets*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-box-seam me-2"></i> Inventori
                     </a>
                 </li>
                 @endif
 
-                @if($canAccess('tickets.index', 'tickets.create', 'Lihat Daftar Tiket', 'Buat Tiket Baru'))
+                {{-- Tiket Corrective untuk IT, Maintenance, dan Outlet --}}
                 <li>
-                    <a href="{{ route('tickets.index') }}" class="nav-link text-white">
+                    <a href="{{ route('tickets.index') }}" class="nav-link text-white {{ request()->routeIs('tickets*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-wrench me-2"></i> Corrective/Tiket
                     </a>
                 </li>
-                @endif
 
                 <hr class="my-2 border-secondary">
             @endif
 
+            <!-- SECTION MENU PANDUAN (SEMUA ROLE) -->
+            <li class="nav-item mt-2">
+                <small class="text-secondary fw-bold text-uppercase px-2">PANDUAN</small>
+            </li>
 
-            <!-- SECTION MENU PANDUAN -->
-            @if($canAccess('panduan.index', 'Panduan', 'Lihat Panduan', 'Panduan Penggunaan'))
-                <li class="nav-item mt-2">
-                    <small class="text-secondary fw-bold text-uppercase px-2">PANDUAN</small>
-                </li>
+            <li>
+                <a href="{{ route('panduan.index') }}" class="nav-link text-white {{ request()->routeIs('panduan*') ? 'active bg-primary' : '' }}">
+                    <i class="bi bi-book me-2"></i> Panduan Penggunaan
+                </a>
+            </li>
 
-                <li>
-                    <a href="{{ route('panduan.index') }}" class="nav-link text-white">
-                        <i class="bi bi-book me-2"></i> Panduan Penggunaan
-                    </a>
-                </li>
-
-                <hr class="my-2 border-secondary">
-            @endif
+            <hr class="my-2 border-secondary">
 
         </ul>
         

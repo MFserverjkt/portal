@@ -23,13 +23,20 @@ class Ticket extends Model
         'branch_name',
         'status',
         'completed_at',
+
+        // --- FIELD TAMBAHAN UNTUK FITUR WORK ---
+        'technician_name',
+        'action_taken',
+        'target_completion_date',
+        'work_status',
     ];
 
     /**
      * Cast tipe data kolom database ke instance Carbon / Datetime
      */
     protected $casts = [
-        'completed_at' => 'datetime',
+        'completed_at'           => 'datetime',
+        'target_completion_date' => 'date', // Cast ke tipe Date Carbon
     ];
 
     /**

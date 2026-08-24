@@ -44,17 +44,19 @@ class TicketController extends Controller
 
         // Filter Tambahan: Filter Branch dari Form / Dropdown jika dipilih
         if (!empty($selectedBranch)) {
-            $query->whereHas('user', function ($q) use ($selectedBranch) {
-                $q->where(function ($subQuery) use ($selectedBranch) {
-                    $subQuery->where('branch_code', $selectedBranch)
-                             ->orWhere('branch_name', $selectedBranch);
-                });
+            $query->where(function ($q) use ($selectedBranch) {
+                $q->where('branch_code', $selectedBranch)
+                  ->orWhere('branch_name', $selectedBranch)
+                  ->orWhereHas('user', function ($subQuery) use ($selectedBranch) {
+                      $subQuery->where('branch_code', $selectedBranch)
+                               ->orWhere('branch_name', $selectedBranch);
+                  });
             });
         }
 
         $tickets = $query->get();
 
-        // Ambil daftar Branch unik dari Users & Assets (Tanpa query kolom outlet_code)
+        // Ambil daftar Branch unik dari Users & Assets
         $branchCodes = User::whereNotNull('branch_code')->pluck('branch_code');
         $assetBranches = Asset::whereNotNull('branch_code')->pluck('branch_code');
 
@@ -105,7 +107,7 @@ class TicketController extends Controller
         ]);
 
         $asset = Asset::find($request->asset_id);
-        $user  = auth()->user(); // Selalu mengambil akun user yang sedang login
+        $user  = auth()->user();
 
         // Handle Upload Lampiran Kerusakan Tiket
         $attachmentPath = null;
@@ -113,16 +115,17 @@ class TicketController extends Controller
             $attachmentPath = $request->file('attachment')->store('tickets/attachments', 'public');
         }
 
-        // Penentuan branch_code
-        $branchCode = $request->branch_code 
-            ?? $asset->branch_code 
-            ?? $user->branch_code 
-            ?? 'HOTNG';
+        // --- FIXED LOGIC BRANCH ---
+        // 1. Pakai input dari Form (dropdown) DULUAN, baru fallback ke Asset -> User -> Default
+        $branchCode = $request->filled('branch_code') 
+            ? $request->branch_code 
+            : ($asset->branch_code ?? $user->branch_code ?? 'HOTNG');
 
-        // Penentuan branch_name yang aman
-        $branchName = $asset->branch_name 
+        // 2. Cari nama cabang dari database berdasarkan branch_code yang dipilih dari form
+        $branchName = Asset::where('branch_code', $branchCode)->value('branch_name')
+            ?? User::where('branch_code', $branchCode)->value('branch_name')
+            ?? $asset->branch_name 
             ?? $user->branch_name 
-            ?? Asset::where('branch_code', $branchCode)->value('branch_name') 
             ?? 'HEAD OFFICE TANGERANG';
 
         Ticket::create([
@@ -147,6 +150,34 @@ class TicketController extends Controller
     {
         $ticket = Ticket::with(['asset', 'user', 'bast.technician'])->findOrFail($id);
         return view('tickets.show', compact('ticket'));
+    }
+
+    /**
+     * Memperbarui informasi Pengerjaan (WORK) oleh Teknisi/Admin
+     */
+    public function updateWork(Request $request, $id)
+    {
+        $request->validate([
+            'technician_name'        => 'required|string|max:255',
+            'action_taken'           => 'required|string',
+            'target_completion_date' => 'required|date',
+            'work_status'            => 'required|in:On Check,Pengajuan Sparepart,Completed',
+        ]);
+
+        $ticket = Ticket::findOrFail($id);
+
+        // Ubah status utama menjadi 'Diproses' jika status pengerjaan masih berjalan
+        $newMainStatus = ($request->work_status === 'Completed') ? $ticket->status : 'Diproses';
+
+        $ticket->update([
+            'technician_name'        => $request->technician_name,
+            'action_taken'           => $request->action_taken,
+            'target_completion_date' => $request->target_completion_date,
+            'work_status'            => $request->work_status,
+            'status'                 => $newMainStatus,
+        ]);
+
+        return redirect()->back()->with('success', 'Progress pengerjaan (WORK) berhasil diperbarui.');
     }
 
     public function createBast($id)

@@ -1,7 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+<!-- Import CSS Select2 & Bootstrap Icons -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 <div class="card border-0 shadow-sm col-md-8 mx-auto mb-4">
     <div class="card-header bg-primary text-white">
@@ -23,7 +25,7 @@
         <form action="{{ route('tickets.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
 
-            <!-- Informasi Pelapor Tiket (Input Teks Manual) -->
+            <!-- Pelapor Tiket -->
             <div class="mb-3">
                 <label for="reporter_name" class="form-label fw-bold">Pelapor Tiket / Nama Staf <span class="text-danger">*</span></label>
                 <input 
@@ -58,11 +60,9 @@
             <div class="mb-3">
                 <label class="form-label fw-bold">Cabang / Outlet <span class="text-danger">*</span></label>
                 @if(auth()->user()->role === 'OUTLET')
-                    <!-- Jika Outlet, kunci cabang sesuai profilnya -->
                     <input type="text" class="form-control bg-light" value="[{{ auth()->user()->branch_code }}] {{ auth()->user()->branch_name ?? 'Cabang Outlet' }}" readonly>
                     <input type="hidden" name="branch_code" value="{{ auth()->user()->branch_code }}">
                 @else
-                    <!-- Jika Admin / IT, berikan dropdown opsi semua cabang -->
                     <select name="branch_code" id="branch-select" class="form-select @error('branch_code') is-invalid @enderror" required>
                         <option value="">-- Pilih Cabang / Outlet --</option>
                         @if(isset($branches) && count($branches) > 0)
@@ -79,21 +79,31 @@
                 @enderror
             </div>
 
-            <!-- Aset Kerusakan (Menampilkan Seluruh Aset Terdaftar) -->
+            <!-- Aset Kerusakan (Dengan Input Group Tombol Scan) -->
             <div class="mb-3">
                 <label class="form-label fw-bold">Pilih Aset Kerusakan <span class="text-danger">*</span></label>
-                <select name="asset_id" id="asset-select" class="form-select @error('asset_id') is-invalid @enderror" required>
-                    <option value="">-- Ketik / Cari Aset --</option>
-                    @forelse($assets as $asset)
-                        <option value="{{ $asset->id }}" {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
-                            {{ $asset->asset_code }} - {{ $asset->asset_name }} {{ $asset->brand ? '('.$asset->brand.')' : '' }} [{{ $asset->branch_name ?? $asset->branch_code ?? 'Semua Cabang' }}]
-                        </option>
-                    @empty
-                        <option value="" disabled>Tidak ada data aset terdaftar dalam sistem</option>
-                    @endforelse
-                </select>
+                
+                <div class="input-group">
+                    <div class="flex-grow-1">
+                        <select name="asset_id" id="asset-select" class="form-select @error('asset_id') is-invalid @enderror" required>
+                            <option value="">-- Ketik / Cari Aset --</option>
+                            @forelse($assets as $asset)
+                                <option value="{{ $asset->id }}" data-code="{{ $asset->asset_code }}" {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
+                                    {{ $asset->asset_code }} - {{ $asset->asset_name }} {{ $asset->brand ? '('.$asset->brand.')' : '' }} [{{ $asset->branch_name ?? $asset->branch_code ?? 'Semua Cabang' }}]
+                                </option>
+                            @empty
+                                <option value="" disabled>Tidak ada data aset terdaftar dalam sistem</option>
+                            @endforelse
+                        </select>
+                    </div>
+                    <!-- TOMBOL SCAN BARCODE (Jelas Terlihat sebagai Tombol Biru) -->
+                    <button type="button" class="btn btn-primary fw-bold" id="btn-scan-barcode" data-bs-toggle="modal" data-bs-target="#barcodeModal" style="z-index: 100;">
+                        📷 SCAN BARCODE
+                    </button>
+                </div>
+
                 @error('asset_id')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
                 @enderror
             </div>
 
@@ -128,7 +138,7 @@
                 @enderror
             </div>
 
-            <!-- INPUT UPLOAD FOTO / LAMPIRAN KERUSAKAN -->
+            <!-- Upload Foto -->
             <div class="mb-3">
                 <label class="form-label fw-bold">Foto / Lampiran Kerusakan <span class="text-muted fw-normal">(Opsional)</span></label>
                 <input type="file" name="attachment" class="form-control @error('attachment') is-invalid @enderror" accept="image/*,.pdf">
@@ -151,12 +161,37 @@
     </div>
 </div>
 
+<!-- MODAL SCANNER BARCODE -->
+<div class="modal fade" id="barcodeModal" tabindex="-1" aria-labelledby="barcodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="barcodeModalLabel"><i class="bi bi-camera me-2"></i>Scan Barcode / QR Code Aset</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="text-muted small">Arahkan kamera ke label Barcode/QR Code yang ada pada fisik Aset.</p>
+                <div id="reader" style="width: 100%; min-height: 250px; background-color: #f8f9fa; border-radius: 8px; overflow: hidden;"></div>
+                <div id="scan-result" class="mt-2 text-primary fw-bold"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup Scanner</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
 <script>
+    let html5QrCode = null;
+
     $(document).ready(function() {
         $('#asset-select').select2({
-            placeholder: "-- Ketik untuk mencari aset (Kode / Nama / Brand / Cabang) --",
+            placeholder: "-- Ketik untuk mencari aset --",
             allowClear: true,
             width: '100%'
         });
@@ -168,6 +203,60 @@
                 width: '100%'
             });
         }
+
+        // Buka Modal Scanner
+        $('#barcodeModal').on('shown.bs.modal', function () {
+            $('#scan-result').text('');
+            html5QrCode = new Html5Qrcode("reader");
+
+            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess
+            ).catch(err => {
+                $('#scan-result').html('<span class="text-danger">Kamera tidak dapat diakses/ditemukan.</span>');
+            });
+        });
+
+        // Tutup Scanner
+        $('#barcodeModal').on('hidden.bs.modal', function () {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                }).catch(err => console.error(err));
+            }
+        });
+
+        // Callback sukses scan
+        function onScanSuccess(decodedText, decodedResult) {
+            let scannedCode = decodedText.trim();
+            $('#scan-result').text('Terdeteksi: ' + scannedCode);
+
+            let matchedValue = null;
+
+            $('#asset-select option').each(function() {
+                let optionCode = $(this).data('code');
+                let optionText = $(this).text();
+
+                if ((optionCode && optionCode.trim() === scannedCode) || optionText.includes(scannedCode)) {
+                    matchedValue = $(this).val();
+                    return false;
+                }
+            });
+
+            if (matchedValue) {
+                $('#asset-select').val(matchedValue).trigger('change');
+                if (html5QrCode) {
+                    html5QrCode.stop().then(() => {
+                        $('#barcodeModal').modal('hide');
+                    });
+                }
+            } else {
+                $('#scan-result').html('<span class="text-danger">Aset (' + scannedCode + ') tidak terdaftar!</span>');
+            }
+        }
     });
 </script>
 
@@ -175,7 +264,8 @@
     .select2-container .select2-selection--single {
         height: 38px !important;
         border: 1px solid #dee2e6 !important;
-        border-radius: 0.375rem !important;
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
     }
     .select2-container--default .select2-selection--single .select2-selection__rendered {
         line-height: 36px !important;

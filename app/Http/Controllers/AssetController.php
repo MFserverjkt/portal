@@ -61,8 +61,9 @@ class AssetController extends Controller
 
     public function store(Request $request)
     {
-        // Validasi input form
+        // Validasi input form (Termasuk penambahan unique check untuk asset_code)
         $request->validate([
+            'asset_code'    => 'required|string|max:255|unique:assets,asset_code',
             'asset_name'    => 'required|string|max:255',
             'category'      => 'required|string|max:255',
             'brand'         => 'nullable|string|max:255',
@@ -70,20 +71,20 @@ class AssetController extends Controller
             'register_date' => 'required|date',
             'status'        => 'required|string',
             'description'   => 'nullable|string',
+        ], [
+            'asset_code.required' => 'Asset ID / Kode Aset wajib diisi.',
+            'asset_code.unique'   => 'Asset ID sudah digunakan! Harap gunakan Asset ID lain.',
         ]);
 
         $branches = $this->getBranches();
 
         // Tangkap kode branch yang dipilih user, jika kosong fallback ke cabang user / 'HOTNG'
-        $branchCode = $request->branch_code ?? (auth()->user()->branch_code ?? 'HOTNG');
+        $branchCode   = $request->branch_code ?? (auth()->user()->branch_code ?? 'HOTNG');
         $registerDate = $request->register_date ?? date('Y-m-d');
 
-        // Generate kode aset otomatis di backend
-        $assetCode = $this->generateAssetCode($branchCode, $registerDate);
-
-        // Simpan data aset
+        // Simpan data aset dengan Kode Aset dari Input Manual
         Asset::create([
-            'asset_code'    => $assetCode,
+            'asset_code'    => $request->asset_code,
             'asset_name'    => $request->asset_name,
             'category'      => $request->category,
             'brand'         => $request->brand,
@@ -94,7 +95,7 @@ class AssetController extends Controller
             'description'   => $request->description,
         ]);
 
-        return redirect()->route('assets.index')->with('success', "Aset berhasil ditambahkan dengan Kode: {$assetCode}");
+        return redirect()->route('assets.index')->with('success', "Aset berhasil ditambahkan dengan Kode: {$request->asset_code}");
     }
 
     public function edit($id)
@@ -110,7 +111,7 @@ class AssetController extends Controller
         $asset = Asset::findOrFail($id);
 
         $request->validate([
-            'asset_code'  => 'required|string|unique:assets,asset_code,' . $asset->id,
+            'asset_code'  => 'required|string|max:255|unique:assets,asset_code,' . $asset->id,
             'asset_name'  => 'required|string|max:255',
             'category'    => 'required|string|max:255',
             'branch_code' => 'required|string',
@@ -135,6 +136,26 @@ class AssetController extends Controller
         return redirect()->route('assets.index')->with('success', 'Aset berhasil dihapus.');
     }
 
+    /**
+     * Method/Fungsi untuk menghapus beberapa aset sekaligus (Bulk Delete)
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids'   => 'required|array',
+            'ids.*' => 'exists:assets,id',
+        ], [
+            'ids.required' => 'Pilih setidaknya satu aset yang ingin dihapus.'
+        ]);
+
+        $count = count($request->ids);
+        
+        // Hapus data berdasarkan array ID yang dikirim dari form Blade
+        Asset::whereIn('id', $request->ids)->delete();
+
+        return redirect()->route('assets.index')->with('success', "Sebanyak {$count} data aset berhasil dihapus.");
+    }
+
     // Method/Fungsi Export Data Aset ke Excel
     public function export()
     {
@@ -154,33 +175,5 @@ class AssetController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('assets.index')->with('error', 'Gagal meng-import file: ' . $e->getMessage());
         }
-    }
-
-    /**
-     * Helper Function Private untuk Generate Kode Aset Otomatis
-     * Format Baru: MF-{BRANCH}-{YYYY-MM-DD}-{NOMOR_URUT} (Contoh: MF-HOTNG-2026-08-20-0001)
-     */
-    private function generateAssetCode($branchCode = 'HOTNG', $date = null)
-    {
-        // Format tanggal menggunakan strip YYYY-MM-DD
-        $dateStr = Carbon::parse($date ?? Carbon::now())->format('Y-m-d');
-        $prefix = "MF-{$branchCode}-{$dateStr}-";
-
-        // Cari aset terakhir dengan prefix yang sama pada tanggal tersebut
-        $lastAsset = Asset::where('asset_code', 'LIKE', $prefix . '%')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if ($lastAsset) {
-            // Ambil 4 digit nomor urut di bagian paling akhir
-            $lastNumber = (int) substr($lastAsset->asset_code, -4);
-            $nextNumber = $lastNumber + 1;
-        } else {
-            $nextNumber = 1;
-        }
-
-        $sequence = str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-
-        return $prefix . $sequence;
     }
 }

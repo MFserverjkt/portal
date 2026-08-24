@@ -56,15 +56,22 @@ Route::middleware(['auth'])->group(function () {
         Route::get('report/maintenance/export', [ReportController::class, 'exportMaintenanceExcel'])->name('report.maintenance.export');
     });
 
-    // --- FITUR INVENTORI ASSET (Termasuk Export & Import Excel) ---
+    // --- FITUR INVENTORI ASSET (Termasuk Export, Import, & Bulk Delete) ---
     Route::middleware(['role:ADMIN,IT,MAINTENANCE'])->group(function () {
         Route::get('assets/export', [AssetController::class, 'export'])->name('assets.export');
         Route::post('assets/import', [AssetController::class, 'import'])->name('assets.import');
+        
+        // Route Bulk Delete (Wajib di atas resource)
+        Route::delete('assets/bulk-delete', [AssetController::class, 'bulkDelete'])->name('assets.bulk-delete');
+        
         Route::resource('assets', AssetController::class);
     });
 
-    // --- FITUR BAST (KHUSUS ADMIN, IT, & MAINTENANCE) ---
+    // --- FITUR WORK PROGRESS & BAST (KHUSUS ADMIN, IT, & MAINTENANCE) ---
     Route::middleware(['role:ADMIN,IT,MAINTENANCE'])->group(function () {
+        // Route Update Work Progress (Modal WORK)
+        Route::patch('tickets/{id}/work', [TicketController::class, 'updateWork'])->name('tickets.work.update');
+
         // Route Utama Pembuatan BAST
         Route::get('tickets/{id}/bast/create', [TicketController::class, 'createBast'])->name('tickets.bast.create');
         Route::post('tickets/{id}/bast', [TicketController::class, 'storeBast'])->name('tickets.bast.store');
