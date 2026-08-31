@@ -14,7 +14,7 @@ class AssetController extends Controller
 {
     /**
      * Helper privat untuk mengambil daftar cabang dinamis dari database.
-     * Jika database kosong, menggunakan fallback daftar cabang bawaan.
+     * Jika database kosong, menggunakan daftar cabang fallback yang sudah diperbarui.
      */
     private function getBranches()
     {
@@ -28,18 +28,31 @@ class AssetController extends Controller
             // Abaikan jika tabel belum terbuat/error
         }
 
-        return [
+        // Master Data Cabang Terbaru (Fallback)
+        $defaultBranches = [
             'HOTNG' => 'HEAD OFFICE TANGERANG',
-            'MFLW'  => 'MAISON FEERIE LIVING WORLD',
-            'MFBX'  => 'MAISON FEERIE BINTARO EXCHANGE',
-            'MFCP'  => 'MAISON FEERIE CENTRAL PARK',
-            'MFLMN' => 'MAISON FEERIE LIPPO MALL NUSANTARA',
-            'MFWCT' => 'MAISON FEERIE WORLD CAPITAL TOWER',
             'MFBDK' => 'MAISON FEERIE BIDAKARA 2',
+            'MFBX2'  => 'MAISON FEERIE BINTARO EXCHANGE MALL 2',
+            'MFCP'  => 'MAISON FEERIE CENTRAL PARK',
+            'MFGM3' => 'MAISON FEERIE GALAXY MALL 3 SBY',
+            'MFHDH' => 'MAISON FEERIE HOKKY FRUIT DARMO HARAPAN SBY',
+            'MFHGF' => 'MAISON FEERIE HOKKY FRUIT GRAHA FAMILY SBY',
+            'MFHMR' => 'MAISON FEERIE HOKKY FRUIT MERR SBY',
             'MFKCH' => 'MAISON FEERIE KERETA CEPAT HALIM',
+            'MFLMN' => 'MAISON FEERIE LIPPO MALL NUSANTARA',
+            'MFLPS' => 'MAISON FEERIE LIPPO PLAZA SIDOARJO SBY',
+            'MFLW'  => 'MAISON FEERIE LIVING WORLD',
+            'MFPCM' => 'MAISON FEERIE PAKUWON CITY MALL SBY',
             'MFPMB' => 'MAISON FEERIE PAKUWON MALL BEKASI',
+            'MFPWM' => 'MAISON FEERIE PAKUWON MALL SBY',
+            'MFSIL' => 'MAISON FEERIE SILOAM SBY',
             'MFSMB' => 'MAISON FEERIE SUMMARECON MALL BEKASI',
+            'MFWCT' => 'MAISON FEERIE WORLD CAPITAL TOWER',
         ];
+
+        asort($defaultBranches);
+
+        return $defaultBranches;
     }
 
     /**

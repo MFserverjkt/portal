@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+<!-- CDN Select2 & Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
 <div class="container-fluid py-2 px-2 px-md-3">
 
     <!-- Tombol Kembali -->
@@ -100,16 +104,38 @@
                         @enderror
                     </div>
 
-                    <!-- Branch -->
+                    <!-- Branch (Cabang Penempatan) -->
                     <div class="col-12">
                         <label class="form-label fw-bold text-dark fs-7 mb-1">Branch (Cabang Penempatan) <span class="text-danger">*</span></label>
-                        <select name="branch_code" class="form-select form-control-mobile @error('branch_code') is-invalid @enderror" required>
+                        
+                        @php
+                            // Array Cabang Terpusat & Terbaru
+                            $masterBranches = [
+                                'HOTNG' => 'HEAD OFFICE TANGERANG',
+                                'MFBDK' => 'MAISON FEERIE BIDAKARA 2',
+                                'MFBX2'  => 'MAISON FEERIE BINTARO EXCHANGE MALL 2',
+                                'MFCP'  => 'MAISON FEERIE CENTRAL PARK',
+                                'MFGM3' => 'MAISON FEERIE GALAXY MALL 3 SBY',
+                                'MFHDH' => 'MAISON FEERIE HOKKY FRUIT DARMO HARAPAN SBY',
+                                'MFHGF' => 'MAISON FEERIE HOKKY FRUIT GRAHA FAMILY SBY',
+                                'MFHMR' => 'MAISON FEERIE HOKKY FRUIT MERR SBY',
+                                'MFKCH' => 'MAISON FEERIE KERETA CEPAT HALIM',
+                                'MFLMN' => 'MAISON FEERIE LIPPO MALL NUSANTARA',
+                                'MFLPS' => 'MAISON FEERIE LIPPO PLAZA SIDOARJO SBY',
+                                'MFLW'  => 'MAISON FEERIE LIVING WORLD',
+                                'MFPCM' => 'MAISON FEERIE PAKUWON CITY MALL SBY',
+                                'MFPMB' => 'MAISON FEERIE PAKUWON MALL BEKASI',
+                                'MFPWM' => 'MAISON FEERIE PAKUWON MALL SBY',
+                                'MFSIL' => 'MAISON FEERIE SILOAM SBY',
+                                'MFSMB' => 'MAISON FEERIE SUMMARECON MALL BEKASI',
+                            ];
+
+                            // Gabungkan data variabel dari Controller jika ada
+                            $listBranches = isset($branches) && !empty($branches) ? $branches : $masterBranches;
+                        @endphp
+
+                        <select name="branch_code" id="select-branch" class="form-select form-control-mobile @error('branch_code') is-invalid @enderror" required>
                             <option value="" disabled {{ old('branch_code') ? '' : 'selected' }}>-- Pilih Cabang --</option>
-                            
-                            @php
-                                $hasBranches = isset($branches) && (is_countable($branches) ? count($branches) > 0 : !empty($branches));
-                                $listBranches = $hasBranches ? $branches : \DB::table('branches')->orderBy('name', 'asc')->get();
-                            @endphp
 
                             @foreach($listBranches as $key => $branch)
                                 @php
@@ -173,7 +199,22 @@
     </div>
 </div>
 
-<!-- CSS Khusus Mengoptimalkan Tampilan Mobile -->
+<!-- JS JQuery & Select2 -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('#select-branch').select2({
+            theme: 'bootstrap-5',
+            placeholder: "-- Pilih Cabang --",
+            allowClear: true,
+            width: '100%'
+        });
+    });
+</script>
+
+<!-- CSS Khusus Mengoptimalkan Tampilan Mobile & Select2 -->
 <style>
     /* Font Size Khusus HP */
     .fs-7 { font-size: 0.875rem !important; }
@@ -184,6 +225,13 @@
         padding: 0.55rem 0.75rem;
         font-size: 0.9rem;
         border-radius: 0.375rem;
+    }
+
+    /* Override Select2 Styling agar sesuai dengan form-control Bootstrap */
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: 40px !important;
+        font-size: 0.9rem !important;
+        padding-top: 4px;
     }
 
     /* Fixed Floating Save Button di Bagian Bawah Layar HP */
@@ -200,7 +248,7 @@
             backdrop-filter: blur(5px);
         }
         body {
-            padding-bottom: 70px; /* Space agar tidak tertutup tombol fixed */
+            padding-bottom: 70px;
         }
     }
 </style>

@@ -7,97 +7,132 @@ use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Throwable;
 
 class AssetImport implements ToModel, WithHeadingRow, SkipsEmptyRows, SkipsOnError
 {
     /**
-     * Menentukan baris tempat Header/Judul Kolom berada di file Excel.
-     * Sesuai dengan format export Excel Maison Feerie, header berada di baris ke-5.
+     * Header kolom di file Excel Asset_Data berada di Baris ke-6 (Row 6).
      */
     public function headingRow(): int
     {
-        return 5; 
+        return 6; 
     }
 
     public function model(array $row)
     {
-        // Bersihkan key array dari spasi / karakter tersembunyi
+        // 1. Normalisasi key array (ubah spasi/karakter khusus menjadi underscore & lowercase)
         $cleanRow = [];
         foreach ($row as $key => $value) {
-            $cleanKey = trim(strtolower((string)$key));
+            $cleanKey = strtolower(trim((string)$key));
+            $cleanKey = str_replace([' ', '-'], '_', $cleanKey);
             $cleanRow[$cleanKey] = is_string($value) ? trim($value) : $value;
         }
 
-        // 1. Tangkap Kode Aset / Asset ID
+        // 2. Ambil Asset ID / Kode Aset
         $assetCode = $cleanRow['asset_id'] 
             ?? $cleanRow['asset_code'] 
             ?? $cleanRow['kode_aset'] 
             ?? $cleanRow['kode_asset'] 
-            ?? $cleanRow['kode'] 
             ?? null;
 
-        // 2. Tangkap Nama Aset
+        // 3. Ambil Nama Aset
         $assetName = $cleanRow['asset_name'] 
             ?? $cleanRow['nama_aset'] 
             ?? $cleanRow['nama_asset'] 
-            ?? $cleanRow['nama_barang'] 
-            ?? $cleanRow['nama']
             ?? null;
 
-        // Jika baris kosong, tidak ada nama aset dan kode aset, lewati
-        if (!$assetName && !$assetCode) {
+        // Jika baris kosong/header terulang, lewati
+        if (!$assetCode && !$assetName) {
             return null;
         }
 
-        // Fallback jika asset_code di Excel kosong
-        if (!$assetCode) {
-            $assetCode = 'MF-HOTNG-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-        }
-
-        // 3. Ambil Kategori
-        $category = $cleanRow['asset_category_name'] 
-            ?? $cleanRow['category'] 
-            ?? $cleanRow['kategori'] 
-            ?? 'Lain-lain';
-
-        // 4. Ambil branch_code
-        $branchCode = $cleanRow['branch'] 
+        // 4. Ambil Raw Branch & Map ke Kode/Nama Cabang Resmi
+        $rawBranch = $cleanRow['branch'] 
+            ?? $cleanRow['branch_name'] 
             ?? $cleanRow['branch_code'] 
-            ?? $cleanRow['kode_cabang'] 
-            ?? null;
+            ?? '';
 
-        if (!$branchCode) {
-            $parts = explode('-', $assetCode);
-            $branchCode = (isset($parts[1]) && !empty($parts[1])) ? $parts[1] : 'HOTNG';
-        }
+        $branchInfo = $this->mapBranchInfo($rawBranch, $assetCode);
 
-        // 5. Tangkap Tanggal Registrasi jika tersedia
+        // 5. Format Tanggal Registrasi
         $registrationDate = null;
-        if (!empty($cleanRow['registration_date'])) {
+        $rawDate = $cleanRow['registration_date'] ?? $cleanRow['register_date'] ?? null;
+
+        if (!empty($rawDate)) {
             try {
-                $registrationDate = date('Y-m-d', strtotime($cleanRow['registration_date']));
+                if (is_numeric($rawDate)) {
+                    $registrationDate = ExcelDate::excelToDateTimeObject($rawDate)->format('Y-m-d');
+                } else {
+                    $registrationDate = date('Y-m-d', strtotime($rawDate));
+                }
             } catch (Throwable $e) {
-                $registrationDate = null;
+                $registrationDate = date('Y-m-d');
             }
         }
 
+        // 6. Buat / Update Data Aset
         return new Asset([
-            'asset_code'         => $assetCode,
-            'asset_name'         => $assetName ?? 'Tanpa Nama',
-            'category'           => $category,
-            'description'        => $cleanRow['description'] ?? $cleanRow['keterangan'] ?? 'Imported from Excel',
-            'branch_code'        => $branchCode,
-            'branch_name'        => $cleanRow['branch_name'] ?? $cleanRow['nama_cabang'] ?? $branchCode,
-            'product_code'       => $cleanRow['product_code'] ?? null,
-            'location'           => $cleanRow['location'] ?? null,
-            'registration_date'  => $registrationDate,
-            'status'             => $cleanRow['status'] ?? 'Aktif',
+            'asset_code'        => $assetCode,
+            'asset_name'        => $assetName ?? 'Tanpa Nama',
+            'category'          => $cleanRow['asset_category_name'] ?? $cleanRow['category'] ?? 'Lain-lain',
+            'description'       => $cleanRow['description'] ?? 'Imported from Excel',
+            'branch_code'       => $branchInfo['code'],
+            'branch_name'       => $branchInfo['name'],
+            'product_code'      => $cleanRow['product_code'] ?? null,
+            'location'          => $cleanRow['location'] ?? $branchInfo['name'],
+            'register_date'     => $registrationDate ?? date('Y-m-d'),
+            'registration_date' => $registrationDate ?? date('Y-m-d'),
+            'status'            => $cleanRow['status'] ?? 'Bagus / Normal',
         ]);
+    }
+
+    /**
+     * Helper Pemetaan Nama Cabang Excel ke Kode & Nama Resmi Sistem
+     */
+    private function mapBranchInfo(string $rawBranch, string $assetCode = ''): array
+    {
+        $branches = [
+            'bintaro'         => ['code' => 'MFBX',  'name' => 'MAISON FEERIE BINTARO EXCHANGE'],
+            'graha'           => ['code' => 'MFHGF', 'name' => 'MAISON FEERIE HOKKY FRUIT GRAHA FAMILY SBY'],
+            'darmo'           => ['code' => 'MFHDH', 'name' => 'MAISON FEERIE HOKKY FRUIT DARMO HARAPAN SBY'],
+            'merr'            => ['code' => 'MFHMR', 'name' => 'MAISON FEERIE HOKKY FRUIT MERR SBY'],
+            'lippo mall'      => ['code' => 'MFLMN', 'name' => 'MAISON FEERIE LIPPO MALL NUSANTARA'],
+            'nusantara'       => ['code' => 'MFLMN', 'name' => 'MAISON FEERIE LIPPO MALL NUSANTARA'],
+            'sidoarjo'        => ['code' => 'MFLPS', 'name' => 'MAISON FEERIE LIPPO PLAZA SIDOARJO SBY'],
+            'living world'    => ['code' => 'MFLW',  'name' => 'MAISON FEERIE LIVING WORLD'],
+            'pakuwon city'    => ['code' => 'MFPCM', 'name' => 'MAISON FEERIE PAKUWON CITY MALL SBY'],
+            'pakuwon bekasi'  => ['code' => 'MFPMB', 'name' => 'MAISON FEERIE PAKUWON MALL BEKASI'],
+            'pakuwon mall'    => ['code' => 'MFPWM', 'name' => 'MAISON FEERIE PAKUWON MALL SBY'],
+            'siloam'          => ['code' => 'MFSIL', 'name' => 'MAISON FEERIE SILOAM SBY'],
+            'summarecon'      => ['code' => 'MFSMB', 'name' => 'MAISON FEERIE SUMMARECON MALL BEKASI'],
+            'central park'    => ['code' => 'MFCP',  'name' => 'MAISON FEERIE CENTRAL PARK'],
+            'bidakara'        => ['code' => 'MFBDK', 'name' => 'MAISON FEERIE BIDAKARA 2'],
+            'halim'           => ['code' => 'MFKCH', 'name' => 'MAISON FEERIE KERETA CEPAT HALIM'],
+            'galaxy'          => ['code' => 'MFGM3', 'name' => 'MAISON FEERIE GALAXY MALL 3 SBY'],
+            'world capital'   => ['code' => 'MFWCT', 'name' => 'MAISON FEERIE WORLD CAPITAL TOWER'],
+            'head office'     => ['code' => 'HOTNG', 'name' => 'HEAD OFFICE TANGERANG'],
+            'tangerang'       => ['code' => 'HOTNG', 'name' => 'HEAD OFFICE TANGERANG'],
+        ];
+
+        $lowerBranch = strtolower($rawBranch);
+
+        foreach ($branches as $keyword => $data) {
+            if (strpos($lowerBranch, $keyword) !== false) {
+                return $data;
+            }
+        }
+
+        // Jika tidak cocok, coba ambil kode dari Asset ID (contoh: BOP-2025-09-30-0002)
+        return [
+            'code' => 'HOTNG',
+            'name' => $rawBranch ?: 'HEAD OFFICE TANGERANG'
+        ];
     }
 
     public function onError(Throwable $e)
     {
-        // Mengabaikan baris error agar tidak menghentikan import baris lainnya
+        // Abaikan error baris individu
     }
 }
