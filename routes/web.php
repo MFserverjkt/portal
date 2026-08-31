@@ -56,8 +56,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('report/maintenance/export', [ReportController::class, 'exportMaintenanceExcel'])->name('report.maintenance.export');
     });
 
-    // --- FITUR INVENTORI ASSET (Termasuk Export, Import, & Bulk Delete) ---
-    Route::middleware(['role:ADMIN,IT,MAINTENANCE'])->group(function () {
+    // --- FITUR INVENTORI ASSET (Termasuk Export, Import, Bulk Delete, & Scan Check API) ---
+    Route::middleware(['role:ADMIN,IT,MAINTENANCE,OUTLET'])->group(function () {
+        // Route API Scanner QR Code (Mendukung GET dan POST untuk fleksibilitas pencarian)
+        Route::match(['get', 'post'], 'assets/scan-check', [AssetController::class, 'scanCheck'])->name('assets.scan-check');
+
         Route::get('assets/export', [AssetController::class, 'export'])->name('assets.export');
         Route::post('assets/import', [AssetController::class, 'import'])->name('assets.import');
         
