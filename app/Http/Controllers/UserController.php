@@ -14,16 +14,27 @@ class UserController extends Controller
 {
     // Daftar Cabang Resmi Maison Feerie
     private $branches = [
-        'HOTNG' => 'HEAD OFFICE TANGERANG',
-        'MFLW'  => 'MAISON FEERIE LIVING WORLD',
-        'MFBX'  => 'MAISON FEERIE BINTARO EXCHANGE',
-        'MFCP'  => 'MAISON FEERIE CENTRAL PARK',
-        'MFLMN' => 'MAISON FEERIE LIPPO MALL NUSANTARA',
-        'MFWCT' => 'MAISON FEERIE WORLD CAPITAL TOWER',
-        'MFBDK' => 'MAISON FEERIE BIDAKARA 2',
-        'MFKCH' => 'MAISON FEERIE KERETA CEPAT HALIM',
-        'MFPMB' => 'MAISON FEERIE PAKUWON MALL BEKASI',
-        'MFSMB' => 'MAISON FEERIE SUMMARECON MALL BEKASI',
+        'HOSBY'  => 'HEAD OFFICE SURABAYA',
+        'HOTNG'  => 'HEAD OFFICE TANGERANG',
+        'MFBDK'  => 'Maison Feerie - Bidakara',
+        'MFBX2'  => 'Maison Feerie - Bintaro Xchange Mall 2',
+        'MFCPM'  => 'Maison Feerie - Central Park Mall',
+        'MFGM3'  => 'Maison Feerie - Galaxy Mall 3',
+        'MFHDH'  => 'Maison Feerie - Hokky Fruit Darmo Harapan',
+        'MFHGF'  => 'Maison Feerie - Hokky Fruit Graha Family',
+        'MFHMR'  => 'Maison Feerie - Hokky Fruit Merr',
+        'MFKCH'  => 'Maison Feerie - KCIC Halim',
+        'MFLMN'  => 'Maison Feerie - Lippo Mall Nusantara',
+        'MFLPS'  => 'Maison Feerie - Lippo Plaza Sidoarjo',
+        'MFLWS'  => 'Maison Feerie - Living World Alam Sutera',
+        'MFPCM'  => 'Maison Feerie - Pakuwon City Mall',
+        'MFPWM'  => 'Maison Feerie - Pakuwon Mall',
+        'MFPMB'  => 'Maison Feerie - Pakuwon Mall Bekasi',
+        'MFSBY'  => 'Maison Feerie - Siloam Surabaya',
+        'MFSMB'  => 'Maison Feerie - Summarecon Mall Bekasi',
+        'MFSPI'  => 'Maison Feerie - Supermall Pakuwon Indah',
+        'MFTPZ'  => 'Maison Feerie - Tunjungan Plaza',
+        'MFWCT'  => 'Maison Feerie - World Capital Tower',
     ];
 
     // Method/fungsi index untuk menampilkan daftar user (dengan dukungan filter Branch)
