@@ -19,7 +19,6 @@ class AssetController extends Controller
     private function getBranches()
     {
         try {
-            // Ambil dari tabel 'branches' dengan format [code => name]
             $branches = DB::table('branches')->orderBy('name', 'asc')->pluck('name', 'code')->toArray();
 
             if (!empty($branches)) {
@@ -29,7 +28,6 @@ class AssetController extends Controller
             // Abaikan jika tabel belum terbuat/error
         }
 
-        // Fallback jika tabel branches di DB belum di-seed/kosong
         return [
             'HOTNG' => 'HEAD OFFICE TANGERANG',
             'MFLW'  => 'MAISON FEERIE LIVING WORLD',
@@ -44,24 +42,96 @@ class AssetController extends Controller
         ];
     }
 
-    // Tampilan Inventori Aset IT & Maintenance
-    public function index()
+    /**
+     * Tampilan Inventori Aset IT & Maintenance (Dilengkapi Filter Query)
+     */
+    public function index(Request $request)
     {
-        $assets = Asset::latest()->get();
-        return view('assets.index', compact('assets'));
+        $query = Asset::query();
+
+        // 1. Filter Pencarian Keyword (Nama / Kode Aset)
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function($q) use ($search) {
+                $q->where('asset_code', 'LIKE', "%{$search}%")
+                  ->orWhere('asset_name', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // 2. Filter Kategori
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        // 3. Filter Lokasi / Cabang
+        if ($request->filled('location')) {
+            $query->where(function($q) use ($request) {
+                $q->where('branch_name', $request->location)
+                  ->orWhere('branch_code', $request->location)
+                  ->orWhere('location', $request->location);
+            });
+        }
+
+        // 4. Filter Kondisi / Status
+        if ($request->filled('condition')) {
+            $condition = $request->condition;
+            if ($condition === 'Baik') {
+                $query->whereIn('status', ['Baik', 'Bagus / Normal', 'Bagus', 'Active']);
+            } else {
+                $query->where('status', $condition);
+            }
+        }
+
+        $assets = $query->latest()->get();
+
+        // Ambil daftar unik lokasi untuk dropdown filter
+        $locations = Asset::select('branch_name')
+            ->whereNotNull('branch_name')
+            ->distinct()
+            ->pluck('branch_name');
+
+        return view('assets.index', compact('assets', 'locations'));
+    }
+
+    /**
+     * Endpoint API / AJAX Khusus Pengecekan Scanner QR Code
+     */
+    public function scanCheck(Request $request)
+    {
+        $code = trim($request->input('asset_code'));
+
+        if (!$code) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Kode QR / Barcode tidak boleh kosong.'
+            ], 400);
+        }
+
+        // Cari data aset tanpa batasan whitespace / case-sensitivity
+        $asset = Asset::where(DB::raw('TRIM(asset_code)'), $code)->first();
+
+        if (!$asset) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Aset ({$code}) tidak terdaftar!"
+            ], 404);
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Aset ditemukan.',
+            'data'    => $asset
+        ]);
     }
 
     public function create(Request $request)
     {
-        // Ambil cabang dinamis dari database
         $branches = $this->getBranches();
-
         return view('assets.create', compact('branches'));
     }
 
     public function store(Request $request)
     {
-        // Validasi input form (Termasuk penambahan unique check untuk asset_code)
         $request->validate([
             'asset_code'    => 'required|string|max:255|unique:assets,asset_code',
             'asset_name'    => 'required|string|max:255',
@@ -77,14 +147,11 @@ class AssetController extends Controller
         ]);
 
         $branches = $this->getBranches();
-
-        // Tangkap kode branch yang dipilih user, jika kosong fallback ke cabang user / 'HOTNG'
-        $branchCode   = $request->branch_code ?? (auth()->user()->branch_code ?? 'HOTNG');
+        $branchCode = $request->branch_code ?? (auth()->user()->branch_code ?? 'HOTNG');
         $registerDate = $request->register_date ?? date('Y-m-d');
 
-        // Simpan data aset dengan Kode Aset dari Input Manual
         Asset::create([
-            'asset_code'    => $request->asset_code,
+            'asset_code'    => trim($request->asset_code),
             'asset_name'    => $request->asset_name,
             'category'      => $request->category,
             'brand'         => $request->brand,
@@ -121,6 +188,7 @@ class AssetController extends Controller
 
         $branches = $this->getBranches();
         $data = $request->all();
+        $data['asset_code'] = trim($request->asset_code);
         $data['branch_name'] = $branches[$request->branch_code] ?? $request->branch_code;
 
         $asset->update($data);
@@ -136,9 +204,6 @@ class AssetController extends Controller
         return redirect()->route('assets.index')->with('success', 'Aset berhasil dihapus.');
     }
 
-    /**
-     * Method/Fungsi untuk menghapus beberapa aset sekaligus (Bulk Delete)
-     */
     public function bulkDelete(Request $request)
     {
         $request->validate([
@@ -149,20 +214,16 @@ class AssetController extends Controller
         ]);
 
         $count = count($request->ids);
-        
-        // Hapus data berdasarkan array ID yang dikirim dari form Blade
         Asset::whereIn('id', $request->ids)->delete();
 
         return redirect()->route('assets.index')->with('success', "Sebanyak {$count} data aset berhasil dihapus.");
     }
 
-    // Method/Fungsi Export Data Aset ke Excel
     public function export()
     {
         return Excel::download(new AssetExport, 'Asset_Data_' . date('Y-m-d') . '.xlsx');
     }
 
-    // Method/Fungsi Import Data Aset dari Excel
     public function import(Request $request)
     {
         $request->validate([
