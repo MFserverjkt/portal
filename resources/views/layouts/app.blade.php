@@ -54,7 +54,7 @@
     $isIT          = $hasRole('IT');
     $isMaintenance = $hasRole('MAINTENANCE');
     $isHC          = $hasRole('HC');
-    $isOutlet      = $hasRole('OUTLET');
+    $isOutlet       = $hasRole('OUTLET');
 
     $branchInfo = $user?->branch_name 
         ?? $user?->outlet_name 
@@ -104,6 +104,11 @@
                 <li>
                     <a href="{{ route('users.roles') }}" class="nav-link text-white {{ request()->routeIs('users.roles*') ? 'active bg-primary' : '' }}">
                         <i class="bi bi-shield-lock me-2"></i> User Role
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('it.checklist.create') }}" class="nav-link text-white {{ request()->routeIs('it.checklist*') ? 'active bg-primary' : '' }}">
+                        <i class="bi bi-check2-square me-2"></i> Checklist Outlet
                     </a>
                 </li>
                 <li>
@@ -219,6 +224,7 @@
                     <li class="nav-item mt-2"><small class="text-secondary fw-bold text-uppercase px-2 fs-8">IT</small></li>
                     <li><a href="{{ route('users.index') }}" class="nav-link text-white {{ request()->routeIs('users.index*') ? 'active bg-primary' : '' }}"><i class="bi bi-people me-2"></i> User Management</a></li>
                     <li><a href="{{ route('users.roles') }}" class="nav-link text-white {{ request()->routeIs('users.roles*') ? 'active bg-primary' : '' }}"><i class="bi bi-shield-lock me-2"></i> User Role</a></li>
+                    <li><a href="{{ route('it.checklist.create') }}" class="nav-link text-white {{ request()->routeIs('it.checklist*') ? 'active bg-primary' : '' }}"><i class="bi bi-check2-square me-2"></i> Checklist Outlet</a></li>
                     <li><a href="{{ route('report.it') }}" class="nav-link text-white {{ request()->routeIs('report.it*') ? 'active bg-primary' : '' }}"><i class="bi bi-file-earmark-text me-2"></i> Report Corrective</a></li>
                     <hr class="my-2 border-secondary">
                 @endif

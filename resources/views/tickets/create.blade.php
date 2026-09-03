@@ -33,7 +33,7 @@
                     id="reporter_name" 
                     class="form-control @error('reporter_name') is-invalid @enderror" 
                     placeholder="Masukkan nama pelapor / staf..." 
-                    value="{{ old('reporter_name', auth()->user()->name) }}" 
+                    value="{{ old('reporter_name') }}" 
                     required
                 >
                 <small class="text-muted">Isi nama staf/personil yang melaporkan kendala ini.</small>
