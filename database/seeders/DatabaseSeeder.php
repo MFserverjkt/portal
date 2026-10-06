@@ -53,11 +53,11 @@ class DatabaseSeeder extends Seeder
                 'branch_name' => 'HEAD OFFICE TANGERANG',
             ],
 
-            // Outlet JABODETABEK
+            // Outlet JABODETABEK (Password: Canele2016$$$)
             [
                 'username'    => 'mflw',
                 'name'        => 'Maison Feerie Living World',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFLW',
                 'branch_name' => 'MAISON FEERIE LIVING WORLD',
@@ -65,7 +65,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfbx',
                 'name'        => 'Maison Feerie Bintaro Exchange',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFBX',
                 'branch_name' => 'MAISON FEERIE BINTARO EXCHANGE',
@@ -73,7 +73,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfcp',
                 'name'        => 'Maison Feerie Central Park',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFCP',
                 'branch_name' => 'MAISON FEERIE CENTRAL PARK',
@@ -81,7 +81,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mflmn',
                 'name'        => 'Maison Feerie Lippo Mall Nusantara',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFLMN',
                 'branch_name' => 'MAISON FEERIE LIPPO MALL NUSANTARA',
@@ -89,7 +89,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfwct',
                 'name'        => 'Maison Feerie World Capital Tower',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFWCT',
                 'branch_name' => 'MAISON FEERIE WORLD CAPITAL TOWER',
@@ -97,7 +97,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfbdk',
                 'name'        => 'Maison Feerie Bidakara 2',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFBDK',
                 'branch_name' => 'MAISON FEERIE BIDAKARA 2',
@@ -105,7 +105,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfkch',
                 'name'        => 'Maison Feerie Kereta Cepat Halim',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFKCH',
                 'branch_name' => 'MAISON FEERIE KERETA CEPAT HALIM',
@@ -113,7 +113,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfpmb',
                 'name'        => 'Maison Feerie Pakuwon Mall Bekasi',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFPMB',
                 'branch_name' => 'MAISON FEERIE PAKUWON MALL BEKASI',
@@ -121,17 +121,17 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfsmb',
                 'name'        => 'Maison Feerie Summarecon Mall Bekasi',
-                'password'    => '123123',
+                'password'    => 'Canele2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFSMB',
                 'branch_name' => 'MAISON FEERIE SUMMARECON MALL BEKASI',
             ],
 
-            // Outlet SURABAYA (SBY) Terbaru
+            // Outlet SURABAYA (SBY) (Password: Puding2016$$$)
             [
                 'username'    => 'mfgm3',
                 'name'        => 'Maison Feerie Galaxy Mall 3 SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFGM3',
                 'branch_name' => 'MAISON FEERIE GALAXY MALL 3 SBY',
@@ -139,7 +139,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfhdh',
                 'name'        => 'Maison Feerie Hokky Fruit Darmo Harapan SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFHDH',
                 'branch_name' => 'MAISON FEERIE HOKKY FRUIT DARMO HARAPAN SBY',
@@ -147,7 +147,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfhgf',
                 'name'        => 'Maison Feerie Hokky Fruit Graha Family SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFHGF',
                 'branch_name' => 'MAISON FEERIE HOKKY FRUIT GRAHA FAMILY SBY',
@@ -155,7 +155,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfhmr',
                 'name'        => 'Maison Feerie Hokky Fruit Merr SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFHMR',
                 'branch_name' => 'MAISON FEERIE HOKKY FRUIT MERR SBY',
@@ -163,7 +163,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mflps',
                 'name'        => 'Maison Feerie Lippo Plaza Sidoarjo SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFLPS',
                 'branch_name' => 'MAISON FEERIE LIPPO PLAZA SIDOARJO SBY',
@@ -171,7 +171,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfpcm',
                 'name'        => 'Maison Feerie Pakuwon City Mall SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFPCM',
                 'branch_name' => 'MAISON FEERIE PAKUWON CITY MALL SBY',
@@ -179,7 +179,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfpwm',
                 'name'        => 'Maison Feerie Pakuwon Mall SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFPWM',
                 'branch_name' => 'MAISON FEERIE PAKUWON MALL SBY',
@@ -187,7 +187,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfspi',
                 'name'        => 'Maison Feerie Supermall Pakuwon Indah SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFSPI',
                 'branch_name' => 'MAISON FEERIE SUPERMALL PAKUWON INDAH SBY',
@@ -195,7 +195,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mftjp',
                 'name'        => 'Maison Feerie Tunjungan Plaza SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFTJP',
                 'branch_name' => 'MAISON FEERIE TUNJUNGAN PLAZA SBY',
@@ -203,7 +203,7 @@ class DatabaseSeeder extends Seeder
             [
                 'username'    => 'mfsil',
                 'name'        => 'Maison Feerie Siloam SBY',
-                'password'    => '123123',
+                'password'    => 'Puding2016$$$',
                 'role'        => 'OUTLET',
                 'branch_code' => 'MFSIL',
                 'branch_name' => 'MAISON FEERIE SILOAM SBY',

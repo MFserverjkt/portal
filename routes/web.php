@@ -8,7 +8,15 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\HcLearningController;
 use App\Http\Controllers\GuidanceController;
-use App\Http\Controllers\ChecklistOutletController; // Controller Checklist Outlet Baru
+use App\Http\Controllers\ChecklistOutletController;
+
+// Import Controller untuk HC Recruitment
+use App\Http\Controllers\HC\DashboardController as HcDashboardController;
+use App\Http\Controllers\HC\ManpowerRequestController;
+use App\Http\Controllers\HC\VacancyController;
+use App\Http\Controllers\HC\CandidateController;
+use App\Http\Controllers\HC\SlaReportController;
+use App\Http\Controllers\HC\AuditLogController;
 
 // 1. Redirect Halaman Utama ke Login
 Route::get('/', function () { 
@@ -57,6 +65,27 @@ Route::middleware(['auth'])->group(function () {
         // Post-Test
         Route::get('post-test', 'posttest')->name('posttest.index');
         Route::post('post-test', 'storePosttest')->name('posttest.store');
+    });
+
+    // --- FITUR HC RECRUITMENT & MANPOWER PLANNING ---
+    Route::middleware(['role:ADMIN,IT,HC,MANAGEMENT'])->prefix('hc')->name('hc.')->group(function () {
+        // Executive Dashboard SLA
+        Route::get('dashboard', [HcDashboardController::class, 'index'])->name('dashboard');
+
+        // Manpower Request & Approval Flow
+        Route::resource('manpower', ManpowerRequestController::class);
+
+        // Vacancies Requisition & Recruitment Pipeline
+        Route::resource('vacancies', VacancyController::class);
+
+        // Candidate Database & Tracking
+        Route::resource('candidates', CandidateController::class);
+
+        // SLA Analytics & Bottleneck Report
+        Route::get('reports/sla', [SlaReportController::class, 'index'])->name('reports.sla');
+
+        // Audit Trail System
+        Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     });
 
     // --- FITUR REPORT CORRECTIVE ---

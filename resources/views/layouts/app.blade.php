@@ -228,11 +228,54 @@
                     <li><a href="{{ route('report.it') }}" class="nav-link text-white {{ request()->routeIs('report.it*') ? 'active bg-primary' : '' }}"><i class="bi bi-file-earmark-text me-2"></i> Report Corrective</a></li>
                     <hr class="my-2 border-secondary">
                 @endif
+                <!-- SECTION: HC LEARNING -->
                 @if($isIT || $isHC || $isOutlet)
-                    <li class="nav-item mt-2"><small class="text-secondary fw-bold text-uppercase px-2 fs-8">HC LEARNING</small></li>
-                    <li><a href="{{ route('hc.elearning.index') }}" class="nav-link text-white {{ request()->routeIs('hc.elearning*') ? 'active bg-primary' : '' }}"><i class="bi bi-mortarboard me-2"></i> e-Learning</a></li>
-                    <li><a href="{{ route('hc.pretest.index') }}" class="nav-link text-white {{ request()->routeIs('hc.pretest*') ? 'active bg-primary' : '' }}"><i class="bi bi-file-earmark-text me-2"></i> Pre-Test</a></li>
-                    <li><a href="{{ route('hc.posttest.index') }}" class="nav-link text-white {{ request()->routeIs('hc.posttest*') ? 'active bg-primary' : '' }}"><i class="bi bi-file-earmark-check me-2"></i> Post-Test</a></li>
+                    <li class="nav-item mt-2">
+                        <small class="text-secondary fw-bold text-uppercase px-2 fs-8" style="letter-spacing: 0.5px;">HC LEARNING</small>
+                    </li>
+                    <li>
+                        <a href="{{ route('hc.elearning.index') }}" class="nav-link text-white {{ request()->routeIs('hc.elearning*') ? 'active bg-primary' : '' }}">
+                            <i class="bi bi-mortarboard me-2"></i> e-Learning
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('hc.pretest.index') }}" class="nav-link text-white {{ request()->routeIs('hc.pretest*') ? 'active bg-primary' : '' }}">
+                            <i class="bi bi-file-earmark-text me-2"></i> Pre-Test
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('hc.posttest.index') }}" class="nav-link text-white {{ request()->routeIs('hc.posttest*') ? 'active bg-primary' : '' }}">
+                            <i class="bi bi-file-earmark-check me-2"></i> Post-Test
+                        </a>
+                    </li>
+                    <hr class="my-2 border-secondary">
+                @endif
+
+                <!-- SECTION: HC RECRUITMENT (Gunakan Auth Check Langsung agar Tidak Luput) -->
+                @if(auth()->check() && in_array(auth()->user()->role, ['ADMIN', 'IT', 'HC', 'MANAGEMENT', 'OUTLET']))
+                    <li class="nav-item mt-2">
+                        <small class="text-secondary fw-bold text-uppercase px-2 fs-8" style="letter-spacing: 0.5px;">HC RECRUITMENT</small>
+                    </li>
+                    <li>
+                        <a href="{{ route('hc.dashboard') }}" class="nav-link text-white {{ request()->routeIs('hc.dashboard*') ? 'active bg-primary' : '' }}">
+                            <i class="bi bi-speedometer2 me-2"></i> Dashboard SLA
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('hc.manpower.index') }}" class="nav-link text-white {{ request()->routeIs('hc.manpower*') ? 'active bg-primary' : '' }}">
+                            <i class="bi bi-file-earmark-person me-2"></i> Manpower Request
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('hc.vacancies.index') }}" class="nav-link text-white {{ request()->routeIs('hc.vacancies*') ? 'active bg-primary' : '' }}">
+                            <i class="bi bi-briefcase me-2"></i> Vacancy & Pipeline
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('hc.candidates.index') }}" class="nav-link text-white {{ request()->routeIs('hc.candidates*') ? 'active bg-primary' : '' }}">
+                            <i class="bi bi-people me-2"></i> Candidate Database
+                        </a>
+                    </li>
                     <hr class="my-2 border-secondary">
                 @endif
                 @if($isMaintenance)

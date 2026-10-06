@@ -6,7 +6,9 @@ use App\Models\Ticket;
 use App\Models\Asset;
 use App\Models\Bast;
 use App\Models\User;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
@@ -93,7 +95,7 @@ class TicketController extends Controller
         return view('tickets.create', compact('assets', 'branches'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, TelegramService $telegram)
     {
         $request->validate([
             'reporter_name' => 'required|string|max:255',
@@ -126,8 +128,10 @@ class TicketController extends Controller
             ?? $user->branch_name 
             ?? 'HEAD OFFICE TANGERANG';
 
-        Ticket::create([
-            'ticket_number' => 'TKT-' . date('Ymd') . '-' . rand(1000, 9999),
+        $ticketNumber = 'TKT-' . date('Ymd') . '-' . rand(1000, 9999);
+
+        $ticket = Ticket::create([
+            'ticket_number' => $ticketNumber,
             'user_id'       => $user->id,
             'reporter_name' => $request->reporter_name,
             'asset_id'      => $request->asset_id,
@@ -140,6 +144,38 @@ class TicketController extends Controller
             'branch_name'   => $branchName,
             'status'        => 'Terbuka',
         ]);
+
+        // --- KIRIM NOTIFIKASI TELEGRAM ---
+        try {
+            $cleanTitle    = htmlspecialchars($request->title, ENT_QUOTES, 'UTF-8');
+            $cleanDesc     = htmlspecialchars($request->description, ENT_QUOTES, 'UTF-8');
+            $cleanReporter = htmlspecialchars($request->reporter_name, ENT_QUOTES, 'UTF-8');
+
+            $message  = "🚨 <b>TIKET PERBAIKAN BARU</b>\n\n";
+            $message .= "<b>No. Tiket:</b> #" . $ticketNumber . "\n";
+            $message .= "<b>Cabang:</b> " . $branchName . "\n";
+            $message .= "<b>Pelapor:</b> " . $cleanReporter . "\n";
+            $message .= "<b>Divisi Tujuan:</b> " . $request->department . "\n";
+            $message .= "<b>Aset:</b> " . ($asset->asset_name ?? '-') . "\n";
+            $message .= "<b>Prioritas:</b> " . $request->priority . "\n";
+            $message .= "<b>Judul:</b> " . $cleanTitle . "\n";
+            $message .= "<b>Kendala:</b> " . $cleanDesc . "\n\n";
+            $message .= "<i>Silakan login ke portal untuk memproses tiket ini.</i>";
+
+            // Jika ada file lampiran gambar, kirim sebagai foto ke Telegram
+            if ($attachmentPath && in_array(pathinfo($attachmentPath, PATHINFO_EXTENSION), ['jpg', 'jpeg', 'png'])) {
+                $fullPhotoPath = storage_path('app/public/' . $attachmentPath);
+                if (file_exists($fullPhotoPath)) {
+                    $telegram->sendPhoto($fullPhotoPath, $message);
+                } else {
+                    $telegram->sendMessage($message);
+                }
+            } else {
+                $telegram->sendMessage($message);
+            }
+        } catch (\Exception $e) {
+            Log::error('Gagal mengirim notifikasi Telegram tiket baru: ' . $e->getMessage());
+        }
 
         return redirect()->route('tickets.index')->with('success', 'Tiket perbaikan berhasil dikirim.');
     }
@@ -231,7 +267,7 @@ class TicketController extends Controller
     /**
      * Konfirmasi Tiket Selesai (DONE) oleh User Pembuat Tiket / Admin
      */
-    public function markAsDone(Request $request, $id)
+    public function markAsDone(Request $request, $id, TelegramService $telegram)
     {
         $ticket = Ticket::findOrFail($id);
 
@@ -266,6 +302,20 @@ class TicketController extends Controller
             $ticket->bast->update([
                 'completed_at' => $completedAt,
             ]);
+        }
+
+        // --- KIRIM NOTIFIKASI TIKET SELESAI KE TELEGRAM ---
+        try {
+            $message  = "✅ <b>TIKET PERBAIKAN SELESAI</b>\n\n";
+            $message .= "<b>No. Tiket:</b> #" . $ticket->ticket_number . "\n";
+            $message .= "<b>Cabang:</b> " . $ticket->branch_name . "\n";
+            $message .= "<b>Pelapor:</b> " . htmlspecialchars($ticket->reporter_name, ENT_QUOTES, 'UTF-8') . "\n";
+            $message .= "<b>Status:</b> Selesai (DONE)\n";
+            $message .= "<b>Tanggal Selesai:</b> " . $completedAt->format('d/m/Y H:i') . "\n";
+
+            $telegram->sendMessage($message);
+        } catch (\Exception $e) {
+            Log::error('Gagal mengirim notifikasi Telegram tiket selesai: ' . $e->getMessage());
         }
 
         return redirect()->back()->with('success', 'Tiket berhasil dikonfirmasi Selesai (DONE) pada tanggal ' . $completedAt->format('d/m/Y H:i') . '.');

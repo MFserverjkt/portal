@@ -89,16 +89,13 @@
                                 $workStatus = $ticket->work_status ?? $ticket->status;
                                 $statusBadge = 'secondary';
 
-                                if (in_array($workStatus, ['Terbuka', 'On Check', 'Pengajuan Sparepart', 'On Progress', 'Diproses'])) {
-                                    $statusBadge = 'warning text-dark';
-                                } elseif ($workStatus === 'Menunggu Konfirmasi') {
-                                    $statusBadge = 'info text-dark';
-                                } elseif (in_array($workStatus, ['Completed', 'Selesai', 'Selesai (DONE)'])) {
-                                    $statusBadge = 'success';
+                                if (in_array($workStatus, ['Terbuka', 'On Check', 'Pengajuan Sparepart', 'On Progress', 'Diproses'])) {$statusBadge = 'warning text-dark';
+                                } elseif ($workStatus === 'Menunggu Konfirmasi') {$statusBadge = 'info text-dark';
+                                } elseif (in_array($workStatus, ['Completed', 'Selesai', 'Selesai (DONE)'])) {$statusBadge = 'success';
                                 }
                             @endphp
                             <span class="badge bg-{{ $statusBadge }}">
-                                {{ in_array($workStatus, ['On Check', 'Pengajuan Sparepart']) ? 'On Progress (' . $workStatus . ')' : $workStatus }}
+                                {{ in_array($workStatus, ['On Check', 'Pengajuan Sparepart']) ? 'On Progress (' . $workStatus . ')' :$workStatus }}
                             </span>
                         </td>
                         <td>
@@ -140,10 +137,17 @@
                                                             <textarea name="action_taken" class="form-control" rows="3" required placeholder="Jelaskan analisa / tindakan perbaikan yang dilakukan">{{ $ticket->action_taken }}</textarea>
                                                         </div>
 
-                                                        <!-- Input Tanggal Target Selesai -->
+                                                        <!-- Input Tanggal Target Selesai (Diberi minimal hari ini) -->
                                                         <div class="mb-3" id="target-wrapper-{{ $ticket->id }}">
                                                             <label class="form-label fw-bold text-dark">Tanggal Target Selesai <span class="text-danger">*</span></label>
-                                                            <input type="date" name="target_completion_date" id="target-date-{{ $ticket->id }}" class="form-control" value="{{ $ticket->target_completion_date }}">
+                                                            <input 
+                                                                type="date" 
+                                                                name="target_completion_date" 
+                                                                id="target-date-{{ $ticket->id }}" 
+                                                                class="form-control" 
+                                                                min="{{ date('Y-m-d') }}"
+                                                                value="{{ $ticket->target_completion_date }}"
+                                                            >
                                                         </div>
 
                                                         <!-- Select Status Pengerjaan -->
@@ -207,9 +211,10 @@
                                                                 id="completed_at_{{ $ticket->id }}"
                                                                 class="form-control" 
                                                                 value="{{ now()->format('Y-m-d\TH:i') }}" 
+                                                                min="{{ now()->format('Y-m-d\TH:i') }}"
                                                                 required
                                                             >
-                                                            <small class="text-muted">Tanggal ini akan dicatat dalam laporan corrective.</small>
+                                                            <small class="text-muted">Tanggal tidak boleh memilih tanggal/waktu yang sudah berlalu.</small>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
