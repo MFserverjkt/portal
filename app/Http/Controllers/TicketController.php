@@ -191,7 +191,6 @@ class TicketController extends Controller
      */
     public function updateWork(Request $request, $id)
     {
-        // Validasi: target_completion_date wajib diisi KECUALI jika work_status bernilai 'Completed'
         $request->validate([
             'technician_name'        => 'required|string|max:255',
             'action_taken'           => 'required|string',
@@ -201,7 +200,6 @@ class TicketController extends Controller
 
         $ticket = Ticket::findOrFail($id);
 
-        // Ubah status utama menjadi 'Diproses' jika status pengerjaan masih berjalan
         $newMainStatus = ($request->work_status === 'Completed') ? $ticket->status : 'Diproses';
 
         $ticket->update([
@@ -219,7 +217,6 @@ class TicketController extends Controller
     {
         $ticket = Ticket::findOrFail($id);
         
-        // Mencegah akses ke form BAST jika BAST sudah terisi
         if ($ticket->bast) {
             return redirect()->route('tickets.show', $id)->with('info', 'BAST untuk tiket ini sudah diisi.');
         }
@@ -227,7 +224,7 @@ class TicketController extends Controller
         return view('tickets.bast.create', compact('ticket'));
     }
 
-    public function storeBast(Request $request, $id)
+    public function storeBast(Request $request, $id, TelegramService $telegram)
     {
         $request->validate([
             'action_taken'   => 'required|string',
@@ -237,7 +234,6 @@ class TicketController extends Controller
 
         $ticket = Ticket::findOrFail($id);
 
-        // Handle Upload Lampiran Bukti BAST
         $attachmentPath = $ticket->bast->attachment ?? null;
         if ($request->hasFile('attachment')) {
             if ($attachmentPath && Storage::disk('public')->exists($attachmentPath)) {
@@ -246,7 +242,6 @@ class TicketController extends Controller
             $attachmentPath = $request->file('attachment')->store('basts/attachments', 'public');
         }
 
-        // Menggunakan updateOrCreate untuk mencegah error UNIQUE constraint
         $ticket->bast()->updateOrCreate(
             ['ticket_id' => $ticket->id],
             [
@@ -258,8 +253,36 @@ class TicketController extends Controller
             ]
         );
 
-        // Status diubah menjadi 'Menunggu Konfirmasi'
         $ticket->update(['status' => 'Menunggu Konfirmasi']);
+
+        // --- KIRIM NOTIFIKASI BAST / SELESAI PENGERJAAN KE TELEGRAM ---
+        try {
+            $techName = $request->technician_name ?? auth()->user()->name;
+            $cleanAction = htmlspecialchars($request->action_taken, ENT_QUOTES, 'UTF-8');
+            $cleanParts  = htmlspecialchars($request->parts_replaced ?? '-', ENT_QUOTES, 'UTF-8');
+
+            $message  = "🛠️ <b>BERITA ACARA SERAH TERIMA (BAST) DIBUAT</b>\n\n";
+            $message .= "<b>No. Tiket:</b> #" . $ticket->ticket_number . "\n";
+            $message .= "<b>Cabang:</b> " . $ticket->branch_name . "\n";
+            $message .= "<b>Teknisi:</b> " . $techName . "\n";
+            $message .= "<b>Tindakan Perbaikan:</b> " . $cleanAction . "\n";
+            $message .= "<b>Sparepart Diganti:</b> " . $cleanParts . "\n";
+            $message .= "<b>Status:</b> Menunggu Konfirmasi DONE dari Outlet\n\n";
+            $message .= "<i>Silakan login ke portal untuk melakukan konfirmasi penyelesaian.</i>";
+
+            if ($attachmentPath && in_array(pathinfo($attachmentPath, PATHINFO_EXTENSION), ['jpg', 'jpeg', 'png'])) {
+                $fullPhotoPath = storage_path('app/public/' . $attachmentPath);
+                if (file_exists($fullPhotoPath)) {
+                    $telegram->sendPhoto($fullPhotoPath, $message);
+                } else {
+                    $telegram->sendMessage($message);
+                }
+            } else {
+                $telegram->sendMessage($message);
+            }
+        } catch (\Exception $e) {
+            Log::error('Gagal mengirim notifikasi Telegram BAST: ' . $e->getMessage());
+        }
 
         return redirect()->route('tickets.show', $ticket->id)->with('success', 'Form BAST berhasil dibuat. Menunggu konfirmasi DONE dari user.');
     }
@@ -271,33 +294,27 @@ class TicketController extends Controller
     {
         $ticket = Ticket::findOrFail($id);
 
-        // Cek Hak Akses: IT & MAINTENANCE Dilarang Menyelesaikan Tiket
         if (in_array(auth()->user()->role, ['IT', 'MAINTENANCE'])) {
             return redirect()->back()->with('error', 'Hanya Pelapor / Outlet yang berhak mengonfirmasi tiket Selesai (DONE).');
         }
 
-        // Pastikan hanya pembuat tiket atau Admin yang bisa menekan DONE
         if ($ticket->user_id !== auth()->id() && auth()->user()->role !== 'ADMIN') {
             return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk mengubah status tiket ini.');
         }
 
-        // Validasi input tanggal penyelesaian
         $request->validate([
             'completed_at' => 'nullable|date',
         ]);
 
-        // Format tanggal penyelesaian dari modal atau default waktu sekarang
         $completedAt = $request->filled('completed_at') 
             ? Carbon::parse($request->completed_at) 
             : now();
 
-        // Update Status Tiket dan Simpan Tanggal Selesai
         $ticket->update([
             'status'       => 'Selesai',
             'completed_at' => $completedAt,
         ]);
 
-        // Jika BAST tersedia, simpan juga tanggal penyelesaian ke tabel BAST
         if ($ticket->bast) {
             $ticket->bast->update([
                 'completed_at' => $completedAt,
@@ -306,11 +323,11 @@ class TicketController extends Controller
 
         // --- KIRIM NOTIFIKASI TIKET SELESAI KE TELEGRAM ---
         try {
-            $message  = "✅ <b>TIKET PERBAIKAN SELESAI</b>\n\n";
+            $message  = "✅ <b>TIKET PERBAIKAN SELESAI (DONE)</b>\n\n";
             $message .= "<b>No. Tiket:</b> #" . $ticket->ticket_number . "\n";
             $message .= "<b>Cabang:</b> " . $ticket->branch_name . "\n";
             $message .= "<b>Pelapor:</b> " . htmlspecialchars($ticket->reporter_name, ENT_QUOTES, 'UTF-8') . "\n";
-            $message .= "<b>Status:</b> Selesai (DONE)\n";
+            $message .= "<b>Status:</b> Selesai\n";
             $message .= "<b>Tanggal Selesai:</b> " . $completedAt->format('d/m/Y H:i') . "\n";
 
             $telegram->sendMessage($message);

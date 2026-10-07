@@ -10,6 +10,9 @@ use App\Http\Controllers\HcLearningController;
 use App\Http\Controllers\GuidanceController;
 use App\Http\Controllers\ChecklistOutletController;
 
+// Import Controller untuk Telegram Bot SDK
+use Telegram\Bot\Laravel\Facades\Telegram;
+
 // Import Controller untuk HC Recruitment
 use App\Http\Controllers\HC\DashboardController as HcDashboardController;
 use App\Http\Controllers\HC\ManpowerRequestController;
@@ -29,6 +32,51 @@ Route::controller(AuthController::class)->group(function () {
     Route::post('login', 'login')->name('login.post');
     Route::post('logout', 'logout')->name('logout');
 });
+
+// ==========================================
+// TELEGRAM BOT ROUTES (Publik / Webhook)
+// ==========================================
+
+// Route untuk uji coba kirim pesan Telegram dari browser
+Route::get('/test-telegram', function () {
+    try {
+        // Ganti dengan Chat ID Telegram Anda (atau ambil dari database/config)
+        $chatId = '1226395565'; 
+
+        $response = Telegram::sendMessage([
+            'chat_id' => $chatId,
+            'text'    => 'Halo Hans! Bot Telegram di Portal Maison Feerie berhasil terhubung dengan Laravel! 🚀'
+        ]);
+
+        return 'Pesan berhasil dikirim ke Telegram!';
+    } catch (\Exception $e) {
+        return 'Gagal mengirim pesan: ' . $e->getMessage();
+    }
+});
+
+// Route untuk menerima update/pesan masuk dari Telegram (Webhook)
+Route::post('/telegram/webhook', function () {
+    $update = Telegram::commandsHandler(true);
+
+    $chatId = $update->getChat()->getId();
+    $text = $update->getText();
+
+    // Contoh respon otomatis sederhana dari bot
+    if ($text == '/start') {
+        Telegram::sendMessage([
+            'chat_id' => $chatId,
+            'text'    => 'Halo! Selamat datang di Portal Maison Feerie Bot.'
+        ]);
+    } else {
+        Telegram::sendMessage([
+            'chat_id' => $chatId,
+            'text'    => 'Pesan Anda diterima: ' . $text
+        ]);
+    }
+
+    return 'OK';
+});
+
 
 // 3. Protected Routes (Wajib Login)
 Route::middleware(['auth'])->group(function () {

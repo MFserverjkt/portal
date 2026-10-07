@@ -12,6 +12,7 @@ class BranchSeeder extends Seeder
         $branches = [
             // Cabang JABODETABEK & Head Office
             ['code' => 'HOTNG', 'name' => 'HEAD OFFICE TANGERANG'],
+            ['code' => 'HOSBY', 'name' => 'HEAD OFFICE SURABAYA'],
             ['code' => 'MFLW',  'name' => 'MAISON FEERIE LIVING WORLD'],
             ['code' => 'MFBX',  'name' => 'MAISON FEERIE BINTARO EXCHANGE'],
             ['code' => 'MFCP',  'name' => 'MAISON FEERIE CENTRAL PARK'],
