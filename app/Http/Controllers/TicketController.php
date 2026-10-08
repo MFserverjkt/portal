@@ -145,33 +145,34 @@ class TicketController extends Controller
             'status'        => 'Terbuka',
         ]);
 
-        // --- KIRIM NOTIFIKASI TELEGRAM ---
+        // --- KIRIM NOTIFIKASI TELEGRAM BERDASARKAN DIVISI ---
         try {
             $cleanTitle    = htmlspecialchars($request->title, ENT_QUOTES, 'UTF-8');
             $cleanDesc     = htmlspecialchars($request->description, ENT_QUOTES, 'UTF-8');
             $cleanReporter = htmlspecialchars($request->reporter_name, ENT_QUOTES, 'UTF-8');
+            $division      = $request->department; // Mengambil divisi tujuan (IT / MAINTENANCE)
 
             $message  = "🚨 <b>TIKET PERBAIKAN BARU</b>\n\n";
             $message .= "<b>No. Tiket:</b> #" . $ticketNumber . "\n";
             $message .= "<b>Cabang:</b> " . $branchName . "\n";
             $message .= "<b>Pelapor:</b> " . $cleanReporter . "\n";
-            $message .= "<b>Divisi Tujuan:</b> " . $request->department . "\n";
+            $message .= "<b>Divisi Tujuan:</b> " . $division . "\n";
             $message .= "<b>Aset:</b> " . ($asset->asset_name ?? '-') . "\n";
             $message .= "<b>Prioritas:</b> " . $request->priority . "\n";
             $message .= "<b>Judul:</b> " . $cleanTitle . "\n";
             $message .= "<b>Kendala:</b> " . $cleanDesc . "\n\n";
             $message .= "<i>Silakan login ke portal untuk memproses tiket ini.</i>";
 
-            // Jika ada file lampiran gambar, kirim sebagai foto ke Telegram
+            // Kirim dengan menyertakan parameter divisi agar masuk ke bot & channel yang sesuai
             if ($attachmentPath && in_array(pathinfo($attachmentPath, PATHINFO_EXTENSION), ['jpg', 'jpeg', 'png'])) {
                 $fullPhotoPath = storage_path('app/public/' . $attachmentPath);
                 if (file_exists($fullPhotoPath)) {
-                    $telegram->sendPhoto($fullPhotoPath, $message);
+                    $telegram->sendPhoto($fullPhotoPath, $message, $division);
                 } else {
-                    $telegram->sendMessage($message);
+                    $telegram->sendMessage($message, $division);
                 }
             } else {
-                $telegram->sendMessage($message);
+                $telegram->sendMessage($message, $division);
             }
         } catch (\Exception $e) {
             Log::error('Gagal mengirim notifikasi Telegram tiket baru: ' . $e->getMessage());
@@ -257,14 +258,16 @@ class TicketController extends Controller
 
         // --- KIRIM NOTIFIKASI BAST / SELESAI PENGERJAAN KE TELEGRAM ---
         try {
-            $techName = $request->technician_name ?? auth()->user()->name;
+            $techName    = $request->technician_name ?? auth()->user()->name;
             $cleanAction = htmlspecialchars($request->action_taken, ENT_QUOTES, 'UTF-8');
             $cleanParts  = htmlspecialchars($request->parts_replaced ?? '-', ENT_QUOTES, 'UTF-8');
+            $division    = $ticket->department; // Mengambil divisi tiket terkait
 
             $message  = "🛠️ <b>BERITA ACARA SERAH TERIMA (BAST) DIBUAT</b>\n\n";
             $message .= "<b>No. Tiket:</b> #" . $ticket->ticket_number . "\n";
             $message .= "<b>Cabang:</b> " . $ticket->branch_name . "\n";
             $message .= "<b>Teknisi:</b> " . $techName . "\n";
+            $message .= "<b>Divisi:</b> " . $division . "\n";
             $message .= "<b>Tindakan Perbaikan:</b> " . $cleanAction . "\n";
             $message .= "<b>Sparepart Diganti:</b> " . $cleanParts . "\n";
             $message .= "<b>Status:</b> Menunggu Konfirmasi DONE dari Outlet\n\n";
@@ -273,12 +276,12 @@ class TicketController extends Controller
             if ($attachmentPath && in_array(pathinfo($attachmentPath, PATHINFO_EXTENSION), ['jpg', 'jpeg', 'png'])) {
                 $fullPhotoPath = storage_path('app/public/' . $attachmentPath);
                 if (file_exists($fullPhotoPath)) {
-                    $telegram->sendPhoto($fullPhotoPath, $message);
+                    $telegram->sendPhoto($fullPhotoPath, $message, $division);
                 } else {
-                    $telegram->sendMessage($message);
+                    $telegram->sendMessage($message, $division);
                 }
             } else {
-                $telegram->sendMessage($message);
+                $telegram->sendMessage($message, $division);
             }
         } catch (\Exception $e) {
             Log::error('Gagal mengirim notifikasi Telegram BAST: ' . $e->getMessage());
@@ -323,14 +326,17 @@ class TicketController extends Controller
 
         // --- KIRIM NOTIFIKASI TIKET SELESAI KE TELEGRAM ---
         try {
+            $division = $ticket->department; // Mengambil divisi tiket terkait
+
             $message  = "✅ <b>TIKET PERBAIKAN SELESAI (DONE)</b>\n\n";
             $message .= "<b>No. Tiket:</b> #" . $ticket->ticket_number . "\n";
             $message .= "<b>Cabang:</b> " . $ticket->branch_name . "\n";
+            $message .= "<b>Divisi:</b> " . $division . "\n";
             $message .= "<b>Pelapor:</b> " . htmlspecialchars($ticket->reporter_name, ENT_QUOTES, 'UTF-8') . "\n";
             $message .= "<b>Status:</b> Selesai\n";
             $message .= "<b>Tanggal Selesai:</b> " . $completedAt->format('d/m/Y H:i') . "\n";
 
-            $telegram->sendMessage($message);
+            $telegram->sendMessage($message, $division);
         } catch (\Exception $e) {
             Log::error('Gagal mengirim notifikasi Telegram tiket selesai: ' . $e->getMessage());
         }

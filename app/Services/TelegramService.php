@@ -10,16 +10,36 @@ class TelegramService
     protected $botToken;
     protected $chatId;
 
-    public function __construct()
+    public function __construct($division = null)
     {
-        $this->botToken = env('TELEGRAM_BOT_TOKEN');
-        $this->chatId   = env('TELEGRAM_CHAT_ID');
+        $this->setCredentials($division);
     }
 
-    public function sendMessage($message)
+    public function setCredentials($division = null)
     {
+        $division = strtoupper(trim($division ?? ''));
+
+        if ($division === 'IT') {
+            $this->botToken = env('IT_TELEGRAM_BOT_TOKEN');
+            $this->chatId   = env('IT_TELEGRAM_CHAT_ID');
+        } elseif ($division === 'MAINTENANCE') {
+            $this->botToken = env('MAINTENANCE_TELEGRAM_BOT_TOKEN');
+            $this->chatId   = env('MAINTENANCE_TELEGRAM_CHAT_ID');
+        } else {
+            // Fallback default
+            $this->botToken = env('TELEGRAM_BOT_TOKEN');
+            $this->chatId   = env('TELEGRAM_CHAT_ID');
+        }
+    }
+
+    public function sendMessage($message, $division = null)
+    {
+        if ($division) {
+            $this->setCredentials($division);
+        }
+
         if (empty($this->botToken) || empty($this->chatId)) {
-            Log::error('Telegram Error: TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID di .env masih kosong!');
+            Log::error('Telegram Error: Token atau Chat ID untuk divisi ' . ($division ?? 'Default') . ' masih kosong!');
             return false;
         }
 
@@ -42,16 +62,20 @@ class TelegramService
         }
     }
 
-    public function sendPhoto($photoPath, $caption)
+    public function sendPhoto($photoPath, $caption, $division = null)
     {
+        if ($division) {
+            $this->setCredentials($division);
+        }
+
         if (empty($this->botToken) || empty($this->chatId)) {
-            Log::error('Telegram Error: TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID di .env masih kosong!');
+            Log::error('Telegram Error: Token atau Chat ID untuk divisi ' . ($division ?? 'Default') . ' masih kosong!');
             return false;
         }
 
         try {
             if (!file_exists($photoPath)) {
-                return $this->sendMessage($caption); // Fallback ke teks biasa jika foto tidak ditemukan
+                return $this->sendMessage($caption, $division);
             }
 
             $response = Http::withoutVerifying()->attach(
